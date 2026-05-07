@@ -1,0 +1,209 @@
+services:
+
+  # --- Infrastructure ---
+
+  mysql_core_db:
+    build: docker-compose/mysql
+    container_name: mysql_javatodev_app
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysqldata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      javatodev_ib_network:
+        ipv4_address: 172.25.0.9
+
+  keycloakdb:
+    image: postgres:15
+    container_name: keycloak_postgre_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      javatodev_ib_network:
+        ipv4_address: 172.25.0.10
+
+  keycloak_web:
+    image: quay.io/keycloak/keycloak:23.0.7
+    container_name: keycloak_web
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloakdb:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    command: ["start-dev", "--import-realm"]
+    depends_on:
+      keycloakdb:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./docker-compose/keycloak:/opt/keycloak/data/import
+    networks:
+      javatodev_ib_network:
+        ipv4_address: 172.25.0.11
+
+  zipkin:
+    image: openzipkin/zipkin:3
+    container_name: openzipkin_server
+    ports:
+      - "9411:9411"
+    networks:
+      javatodev_ib_network:
+        ipv4_address: 172.25.0.12
+
+  # --- Spring Cloud Infrastructure ---
+
+  internet-banking-config-server:
+    build: internet-banking-config-server
+    container_name: internet-banking-config-server
+    ports:
+      - "8090:8090"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8090/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      javatodev_ib_network:
+        ipv4_address: 172.25.0.8
+
+  internet-banking-service-registry:
+    build: internet-banking-service-registry
+    container_name: internet-banking-service-registry
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8081/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      javatodev_ib_network:
+        ipv4_address: 172.25.0.7
+
+  # --- Business Services ---
+
+  internet-banking-api-gateway:
+    build: internet-banking-api-gateway
+    container_name: internet-banking-api-gateway
+    ports:
+      - "8082:8082"
+    depends_on:
+      internet-banking-config-server:
+        condition: service_healthy
+      internet-banking-service-registry:
+        condition: service_healthy
+      keycloak_web:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    networks:
+      javatodev_ib_network:
+        ipv4_address: 172.25.0.6
+
+  internet-banking-user-service:
+    build: internet-banking-user-service
+    container_name: internet-banking-user-service
+    ports:
+      - "8083:8083"
+    depends_on:
+      internet-banking-config-server:
+        condition: service_healthy
+      internet-banking-service-registry:
+        condition: service_healthy
+      mysql_core_db:
+        condition: service_healthy
+      keycloak_web:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    networks:
+      javatodev_ib_network:
+        ipv4_address: 172.25.0.5
+
+  internet-banking-fund-transfer-service:
+    build: internet-banking-fund-transfer-service
+    container_name: internet-banking-fund-transfer-service
+    ports:
+      - "8084:8084"
+    depends_on:
+      internet-banking-config-server:
+        condition: service_healthy
+      internet-banking-service-registry:
+        condition: service_healthy
+      mysql_core_db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    networks:
+      javatodev_ib_network:
+        ipv4_address: 172.25.0.4
+
+  internet-banking-utility-payment-service:
+    build: internet-banking-utility-payment-service
+    container_name: internet-banking-utility-payment-service
+    ports:
+      - "8085:8085"
+    depends_on:
+      internet-banking-config-server:
+        condition: service_healthy
+      internet-banking-service-registry:
+        condition: service_healthy
+      mysql_core_db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    networks:
+      javatodev_ib_network:
+        ipv4_address: 172.25.0.3
+
+  core-banking-service:
+    build: core-banking-service
+    container_name: core-banking-service
+    ports:
+      - "8092:8092"
+    depends_on:
+      internet-banking-config-server:
+        condition: service_healthy
+      internet-banking-service-registry:
+        condition: service_healthy
+      mysql_core_db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    networks:
+      javatodev_ib_network:
+        ipv4_address: 172.25.0.2
+
+volumes:
+  postgres_data:
+  mysqldata:
+
+networks:
+  javatodev_ib_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.25.0.0/16
+          gateway: 172.25.0.1
