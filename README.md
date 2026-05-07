@@ -22,7 +22,17 @@ $ git clone https://github.com/JavatoDev-com/internet-banking-concept-microservi
 ```shell
 $ cd internet-banking-concept-microservices/docker-compose
 ```
-3. Start application using docker-compose:
+
+3. Create a `.env` file from the example and fill in your credentials:
+
+```shell
+$ cp .env.example .env
+# Edit .env and set all required passwords
+```
+
+> **Security note:** Never commit the `.env` file. It is already listed in `.gitignore`.
+
+4. Start application using docker-compose:
 
 ```shell
 $ docker-compose up -d

@@ -32,4 +32,4 @@ app:
       server-url: http://localhost:8080/auth
       realm: javatodev-internet-banking
       clientId: internet-banking-api-client
-      client-secret: e8548d56-d743-45ef-8655-063c9cd96759
+      client-secret: ${KEYCLOAK_CLIENT_SECRET:-test-secret-placeholder}
