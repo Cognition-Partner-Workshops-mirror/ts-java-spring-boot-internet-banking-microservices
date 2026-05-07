@@ -126,5 +126,5 @@ This document compares the current codebase against industry-standard engineerin
 | Security | 2 | 2 | 3 | 1 |
 | API Design | 0 | 0 | 4 | 4 |
 | Observability | 1 | 1 | 4 | 1 |
-| Resilience | 1 | 4 | 3 | 1 |
-| **Total** | **7** | **14** | **18** | **10** |
+| Resilience | 1 | 5 | 2 | 1 |
+| **Total** | **7** | **15** | **17** | **10** |
