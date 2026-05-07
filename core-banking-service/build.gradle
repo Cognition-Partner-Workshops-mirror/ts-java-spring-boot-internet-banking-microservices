@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'war'
     id 'org.springframework.boot' version '3.2.4'
     id 'io.spring.dependency-management' version '1.1.4'
     id "com.gorylenko.gradle-git-properties" version "2.4.2"
@@ -43,6 +44,14 @@ dependencies {
 
     //SWAGGER
     implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.1.0'
+
+    //JSP CUSTOM REPORTS - embedded Tomcat JSP engine and JSTL tag library
+    implementation 'org.apache.tomcat.embed:tomcat-embed-jasper'
+    implementation 'jakarta.servlet.jsp.jstl:jakarta.servlet.jsp.jstl-api:3.0.0'
+    implementation 'org.glassfish.web:jakarta.servlet.jsp.jstl:3.0.1'
+
+    //TABLEAU INTEGRATION - Jackson CSV for data export
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-csv'
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

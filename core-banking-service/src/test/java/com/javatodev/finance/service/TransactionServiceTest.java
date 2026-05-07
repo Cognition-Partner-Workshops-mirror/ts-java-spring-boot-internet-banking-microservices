@@ -179,8 +179,13 @@ class TransactionServiceTest {
         BankAccount account = new BankAccount();
         account.setNumber("A1");
         account.setActualBalance(BigDecimal.valueOf(50));
+        // Use setter-based construction consistent with the rest of the test file
+        FundTransferRequest request = new FundTransferRequest();
+        request.setFromAccount("A1");
+        request.setToAccount("A2");
+        request.setAmount(BigDecimal.valueOf(100));
         assertThrows(InsufficientFundsException.class, () -> {
-            transactionService.fundTransfer(new FundTransferRequest("A1", "A2", BigDecimal.valueOf(100)));
+            transactionService.fundTransfer(request);
         });
     }
 }

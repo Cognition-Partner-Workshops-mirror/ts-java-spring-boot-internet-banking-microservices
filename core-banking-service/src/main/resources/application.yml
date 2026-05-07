@@ -1,3 +1,8 @@
 spring:
   application:
     name: core-banking-service
+  mvc:
+    view:
+      # JSP view resolver configuration for custom reports
+      prefix: /WEB-INF/jsp/
+      suffix: .jsp
