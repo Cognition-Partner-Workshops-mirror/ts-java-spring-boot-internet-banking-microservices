@@ -77,7 +77,7 @@ services:
         ipv4_address: 172.25.0.7
 
   redis:
-    image: redis:7-alpine
+    image: cgr.dev/chainguard/redis:latest
     container_name: redis_rate_limiter
     ports:
       - 6379:6379
