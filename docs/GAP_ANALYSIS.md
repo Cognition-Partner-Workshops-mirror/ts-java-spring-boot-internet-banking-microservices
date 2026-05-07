@@ -647,7 +647,7 @@ Similarly, the `availableBalance` bug in `TransactionService` means account bala
 | Critical | 6 |
 | High | 7 |
 | Medium | 13 |
-| Low | 4 |
+| Low | 5 |
 
 ### Effort Distribution
 
