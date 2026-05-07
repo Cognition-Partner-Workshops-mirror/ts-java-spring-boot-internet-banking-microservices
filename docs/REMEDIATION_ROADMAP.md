@@ -92,6 +92,16 @@ The catch-all `Exception` handler in every service exposes internal stack traces
 
 ---
 
+### 1.11 Add Idempotency Protection to Financial Transactions
+**Gap:** GAP-RES-08 | **Severity:** Critical | **Effort:** Medium
+
+This is the single most dangerous gap for a banking application. Without idempotency keys, any client retry (timeout, network blip, gateway retry) silently executes a fund transfer or payment **twice**. Every production-grade financial API (Stripe, Adyen, Plaid) mandates idempotency keys on mutating endpoints for exactly this reason.
+
+**Devin Prompt:**
+> In the `ts-java-spring-boot-internet-banking-microservices` repo, add idempotency key support to fund transfer and utility payment endpoints. (1) Add an `Idempotency-Key` header parameter (UUID) to `FundTransferController.fundTransfer()` and `UtilityPaymentController.utilPayment()`. (2) Create an `idempotency_key` table (or add a `UNIQUE` column to `fund_transfer` and `utility_payment` tables) that stores the key, response, and expiry. (3) Before processing, check if the key already exists — if so, return the stored response with HTTP 200 (not re-execute). If the key is new, proceed normally and store the response on success. (4) Return HTTP 409 Conflict if a request with the same key is already in-flight (concurrent duplicate). (5) Add `@NotBlank` validation on the header so requests without an idempotency key are rejected with 400. (6) Add unit tests covering: duplicate key returns cached response, missing key returns 400, concurrent duplicate returns 409. Open a PR.
+
+---
+
 ## Phase 2: Important Improvements (Architecture & Reliability)
 
 These items address structural issues, testing gaps, and resilience patterns. Target: **3-6 weeks**.
@@ -292,7 +302,7 @@ These items elevate the codebase from "working" to "production-grade." Target: *
 
 | Phase | Items | Critical Fixes | Target Timeline |
 |-------|-------|---------------|-----------------|
-| **Phase 1: Quick Wins** | 10 items | 4 (ERR-02, SEC-01, SEC-02, ERR-01) | 1-2 weeks |
+| **Phase 1: Quick Wins** | 11 items | 5 (ERR-02, SEC-01, SEC-02, ERR-01, RES-08) | 1-2 weeks |
 | **Phase 2: Important** | 13 items | 4 (RES-01, TEST-01 x3) | 3-6 weeks |
 | **Phase 3: Polish** | 10 items | 0 | Ongoing |
 
@@ -310,7 +320,8 @@ Phase 1 (no dependencies — all can be done in parallel)
   ├── 1.7 Add timeouts
   ├── 1.8 Add retries
   ├── 1.9 Exclude password from response
-  └── 1.10 Fix error response format
+  ├── 1.10 Fix error response format
+  └── 1.11 Add idempotency keys to financial endpoints  ◄── THE critical gap
         │
 Phase 2 (some dependencies)
   │

@@ -317,6 +317,23 @@ The same issue exists in `UtilityPaymentService`.
 
 Docker Compose uses `wait-for-it.sh` with 50-second timeouts for startup ordering. This is fragile — if infrastructure takes longer to start, services will fail. Spring Boot's built-in retry or a healthcheck-based approach would be more robust.
 
+### GAP-RES-08: No Idempotency Protection on Financial Transactions
+**Severity: Critical | Effort: Medium**
+
+Neither the fund transfer nor the utility payment endpoint accepts or enforces an idempotency key. This means:
+
+- If a client times out waiting for a response and retries the same POST, the transfer executes **twice** — money is debited and credited a second time with no deduplication.
+- If the API gateway retries a request due to a transient error, the same double-execution occurs.
+- There is no unique constraint on `(fromAccount, toAccount, amount)` or any client-supplied request ID that would prevent duplicate processing.
+
+For a banking application this is arguably the single most dangerous gap. A `409 Conflict` response for a duplicate idempotency key is standard practice in financial APIs (Stripe, Adyen, Plaid all mandate it). Without this, every network hiccup between client and gateway is a potential double-charge.
+
+**Evidence in code:**
+- `FundTransferController.fundTransfer()` accepts `FundTransferRequest` with no idempotency header or field.
+- `FundTransferService.fundTransfer()` unconditionally creates a new `FundTransferEntity` on every call.
+- `TransactionService.fundTransfer()` in core-banking immediately debits/credits with no duplicate check.
+- The same pattern applies to `UtilityPaymentController` / `UtilityPaymentService`.
+
 ---
 
 ## Summary Table
@@ -362,9 +379,10 @@ Docker Compose uses `wait-for-it.sh` with 50-second timeouts for startup orderin
 | GAP-RES-05 | Resilience | No connection pool config | Medium | Small |
 | GAP-RES-06 | Resilience | No compensation/rollback for distributed transactions | High | Large |
 | GAP-RES-07 | Resilience | Fragile Docker startup ordering | Low | Small |
+| GAP-RES-08 | Resilience | **No idempotency protection on financial transactions** | Critical | Medium |
 
 **Totals by Severity:**
-- Critical: 6
+- Critical: 7
 - High: 13
 - Medium: 15
 - Low: 7
