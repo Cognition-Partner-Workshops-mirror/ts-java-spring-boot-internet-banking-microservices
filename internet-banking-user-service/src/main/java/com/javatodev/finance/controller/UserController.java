@@ -11,6 +11,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
+
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
@@ -27,15 +29,15 @@ public class UserController {
 
     @Operation(summary = "Register User", description = "Create a new user in the banking system")
     @PostMapping(value = "/register")
-    public ResponseEntity<User> createUser(@RequestBody User request) {
-        log.info("Creating user with {}", request.toString());
+    public ResponseEntity<User> createUser(@Valid @RequestBody User request) {
+        log.info("User registration request for identification {}", request.getIdentification());
         return ResponseEntity.ok(userService.createUser(request));
     }
 
     @Operation(summary = "Update User", description = "Update an existing user's information")
     @PatchMapping(value = "/update/{id}")
     public ResponseEntity<User> updateUser(@PathVariable("id") Long userId, @RequestBody UserUpdateRequest userUpdateRequest) {
-        log.info("Updating user with {}", userUpdateRequest.toString());
+        log.info("Updating user {}", userId);
         return ResponseEntity.ok(userService.updateUser(userId, userUpdateRequest));
     }
 

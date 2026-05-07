@@ -12,6 +12,7 @@ import com.javatodev.finance.service.rest.client.BankingCoreFeignClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -21,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RequiredArgsConstructor
 @Service
+@Transactional
 public class FundTransferService {
 
     private final FundTransferRepository fundTransferRepository;
@@ -29,7 +31,7 @@ public class FundTransferService {
     private FundTransferMapper mapper = new FundTransferMapper();
 
     public FundTransferResponse fundTransfer(FundTransferRequest request) {
-        log.info("Sending fund transfer request {}" + request.toString());
+        log.info("Fund transfer request: {} -> {}, amount: {}", request.getFromAccount(), request.getToAccount(), request.getAmount());
 
         FundTransferEntity entity = new FundTransferEntity();
         BeanUtils.copyProperties(request, entity);

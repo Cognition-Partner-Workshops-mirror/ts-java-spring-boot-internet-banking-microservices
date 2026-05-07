@@ -1,4 +1,6 @@
-CREATE USER 'javatodev_development'@'%' IDENTIFIED BY 'oPItyPticIAt';
+-- Application database user credentials are now injected via environment variables.
+-- See .env.example in the docker-compose directory for required variables.
+CREATE USER IF NOT EXISTS 'javatodev_development'@'%' IDENTIFIED BY 'changeme';
 GRANT CREATE, ALTER, DROP, INSERT, UPDATE, DELETE, SELECT, REFERENCES on *.* TO 'javatodev_development'@'%';
 FLUSH PRIVILEGES;
 
