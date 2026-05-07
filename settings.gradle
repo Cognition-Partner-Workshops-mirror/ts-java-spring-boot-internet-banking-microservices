@@ -1,0 +1,10 @@
+rootProject.name = 'internet-banking-microservices'
+
+include 'banking-common-lib'
+include 'core-banking-service'
+include 'internet-banking-api-gateway'
+include 'internet-banking-config-server'
+include 'internet-banking-fund-transfer-service'
+include 'internet-banking-service-registry'
+include 'internet-banking-user-service'
+include 'internet-banking-utility-payment-service'
