@@ -5,5 +5,6 @@ public class GlobalErrorCode {
     public static final String ERROR_EMAIL_REGISTERED = "USER-SERVICE-1001";
     public static final String ERROR_INVALID_EMAIL = "USER-SERVICE-1002";
     public static final String ERROR_USER_NOT_FOUND_UNDER_NIC = "USER-SERVICE-1003";
+    public static final String ERROR_INTERNAL_SERVER = "USER-SERVICE-1999";
 
 }
