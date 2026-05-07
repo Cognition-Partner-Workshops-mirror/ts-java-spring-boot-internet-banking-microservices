@@ -89,7 +89,7 @@ This document compares the Internet Banking Microservices codebase against engin
 | # | Gap | Severity | Effort |
 |---|-----|----------|--------|
 | SE-1 | **Downstream services have no authentication.** Core-banking, user, fund-transfer, and utility-payment services accept all HTTP requests without verifying JWT tokens. If accessed directly (bypassing the gateway), they are fully open. | Critical | Medium |
-| SE-2 | **Hardcoded credentials in source code.** MySQL root password (`woVERANKliGharym`), DB user password (`oPItyPticIAt`), Keycloak admin password (`password`), and test credentials are in `docker-compose.yml`, `Dockerfile`, and `privileges.sql`. | Critical | Medium |
+| SE-2 | **Hardcoded credentials in source code.** MySQL root password, DB user password, Keycloak admin password, and test credentials are hardcoded in `docker-compose.yml`, `Dockerfile`, and `privileges.sql` rather than using environment variables or a secrets manager. | Critical | Medium |
 | SE-3 | **No input validation.** None of the request DTOs (`FundTransferRequest`, `UtilityPaymentRequest`, `User`) use Bean Validation annotations (`@NotNull`, `@NotBlank`, `@Min`, `@Size`, etc.). Malformed or incomplete requests are accepted. | High | Small |
 | SE-4 | **CSRF disabled without justification.** The API Gateway disables CSRF protection (`csrf().disable()`). While acceptable for stateless JWT APIs, this should be documented. | Low | Small |
 | SE-5 | **No role-based access control (RBAC).** All authenticated users can access all endpoints. There is no distinction between admin and regular user roles. | High | Medium |
