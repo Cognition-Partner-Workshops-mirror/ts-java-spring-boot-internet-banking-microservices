@@ -16,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,12 +31,24 @@ public class FundTransferService {
 
     private FundTransferMapper mapper = new FundTransferMapper();
 
-    public FundTransferResponse fundTransfer(FundTransferRequest request) {
+    public FundTransferResponse fundTransfer(FundTransferRequest request, String idempotencyKey) {
         log.info("Sending fund transfer request");
+
+        if (idempotencyKey != null) {
+            Optional<FundTransferEntity> existing = fundTransferRepository.findByIdempotencyKey(idempotencyKey);
+            if (existing.isPresent()) {
+                log.info("Duplicate request detected for idempotency key {}", idempotencyKey);
+                FundTransferResponse response = new FundTransferResponse();
+                response.setMessage("Fund Transfer Successfully Completed");
+                response.setTransactionId(existing.get().getTransactionReference());
+                return response;
+            }
+        }
 
         FundTransferEntity entity = new FundTransferEntity();
         BeanUtils.copyProperties(request, entity);
         entity.setStatus(TransactionStatus.PENDING);
+        entity.setIdempotencyKey(idempotencyKey);
         FundTransferEntity optFundTransfer = fundTransferRepository.save(entity);
 
         FundTransferResponse fundTransferResponse = bankingCoreFeignClient.fundTransfer(request);

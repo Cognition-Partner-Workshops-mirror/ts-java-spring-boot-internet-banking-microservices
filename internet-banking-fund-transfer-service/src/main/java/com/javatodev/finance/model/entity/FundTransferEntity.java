@@ -24,6 +24,9 @@ public class FundTransferEntity extends AuditAware {
     private String toAccount;
     private BigDecimal amount;
 
+    @Column(unique = true)
+    private String idempotencyKey;
+
     @Enumerated(EnumType.STRING)
     private TransactionStatus status;
 

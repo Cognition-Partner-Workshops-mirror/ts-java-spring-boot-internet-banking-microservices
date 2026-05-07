@@ -16,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,12 +30,24 @@ public class UtilityPaymentService {
 
     private UtilityPaymentMapper utilityPaymentMapper = new UtilityPaymentMapper();
 
-    public UtilityPaymentResponse utilPayment(UtilityPaymentRequest paymentRequest) {
+    public UtilityPaymentResponse utilPayment(UtilityPaymentRequest paymentRequest, String idempotencyKey) {
         log.info("Utility payment processing");
+
+        if (idempotencyKey != null) {
+            Optional<UtilityPaymentEntity> existing = utilityPaymentRepository.findByIdempotencyKey(idempotencyKey);
+            if (existing.isPresent()) {
+                log.info("Duplicate request detected for idempotency key {}", idempotencyKey);
+                return UtilityPaymentResponse.builder()
+                    .message("Utility Payment Successfully Processed")
+                    .transactionId(existing.get().getTransactionId())
+                    .build();
+            }
+        }
 
         UtilityPaymentEntity entity = new UtilityPaymentEntity();
         BeanUtils.copyProperties(paymentRequest, entity);
         entity.setStatus(TransactionStatus.PROCESSING);
+        entity.setIdempotencyKey(idempotencyKey);
         UtilityPaymentEntity optUtilPayment = utilityPaymentRepository.save(entity);
 
         UtilityPaymentResponse utilityPaymentResponse = bankingCoreRestClient.utilityPayment(paymentRequest);
