@@ -61,7 +61,7 @@ public class TransactionService {
         //we can call third party API to process UTIL payment from payment provider from here.
 
         fromAccount.setActualBalance(fromAccount.getActualBalance().subtract(utilityPaymentRequest.getAmount()));
-        fromAccount.setAvailableBalance(fromAccount.getActualBalance().subtract(utilityPaymentRequest.getAmount()));
+        fromAccount.setAvailableBalance(fromAccount.getActualBalance());
 
         transactionRepository.save(TransactionEntity.builder().transactionType(TransactionType.UTILITY_PAYMENT)
             .account(fromAccount)
@@ -88,7 +88,7 @@ public class TransactionService {
         BankAccountEntity toBankAccountEntity = bankAccountRepository.findByNumber(toBankAccount.getNumber()).orElseThrow(EntityNotFoundException::new);
 
         fromBankAccountEntity.setActualBalance(fromBankAccountEntity.getActualBalance().subtract(amount));
-        fromBankAccountEntity.setAvailableBalance(fromBankAccountEntity.getActualBalance().subtract(amount));
+        fromBankAccountEntity.setAvailableBalance(fromBankAccountEntity.getActualBalance());
         bankAccountRepository.save(fromBankAccountEntity);
 
         transactionRepository.save(TransactionEntity.builder().transactionType(TransactionType.FUND_TRANSFER)
@@ -97,7 +97,7 @@ public class TransactionService {
             .account(fromBankAccountEntity).amount(amount.negate()).build());
 
         toBankAccountEntity.setActualBalance(toBankAccountEntity.getActualBalance().add(amount));
-        toBankAccountEntity.setAvailableBalance(toBankAccountEntity.getActualBalance().add(amount));
+        toBankAccountEntity.setAvailableBalance(toBankAccountEntity.getActualBalance());
         bankAccountRepository.save(toBankAccountEntity);
 
         transactionRepository.save(TransactionEntity.builder().transactionType(TransactionType.FUND_TRANSFER)
