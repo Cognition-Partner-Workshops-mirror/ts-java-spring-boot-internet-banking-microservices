@@ -1,4 +1,12 @@
 spring:
   application:
     name: internet-banking-utility-payment-service
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connect-timeout: 5000
+            read-timeout: 10000
+            logger-level: basic
 

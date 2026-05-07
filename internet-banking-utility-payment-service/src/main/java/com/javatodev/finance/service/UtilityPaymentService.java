@@ -5,6 +5,7 @@ import com.javatodev.finance.model.dto.UtilityPayment;
 import com.javatodev.finance.model.entity.UtilityPaymentEntity;
 import com.javatodev.finance.model.mapper.UtilityPaymentMapper;
 import com.javatodev.finance.model.rest.request.UtilityPaymentRequest;
+import com.javatodev.finance.model.rest.response.PageResponse;
 import com.javatodev.finance.model.rest.response.UtilityPaymentResponse;
 import com.javatodev.finance.repository.UtilityPaymentRepository;
 import com.javatodev.finance.service.rest.BankingCoreRestClient;
@@ -29,7 +30,7 @@ public class UtilityPaymentService {
     private UtilityPaymentMapper utilityPaymentMapper = new UtilityPaymentMapper();
 
     public UtilityPaymentResponse utilPayment(UtilityPaymentRequest paymentRequest) {
-        log.info("Utility payment processing {}", paymentRequest.toString());
+        log.info("Utility payment processing");
 
         UtilityPaymentEntity entity = new UtilityPaymentEntity();
         BeanUtils.copyProperties(paymentRequest, entity);
@@ -37,7 +38,7 @@ public class UtilityPaymentService {
         UtilityPaymentEntity optUtilPayment = utilityPaymentRepository.save(entity);
 
         UtilityPaymentResponse utilityPaymentResponse = bankingCoreRestClient.utilityPayment(paymentRequest);
-        log.info("Transaction response {}", utilityPaymentResponse.toString());
+        log.info("Utility payment transaction completed with id {}", utilityPaymentResponse.getTransactionId());
 
         optUtilPayment.setStatus(TransactionStatus.SUCCESS);
         optUtilPayment.setTransactionId(utilityPaymentResponse.getTransactionId());
@@ -46,8 +47,16 @@ public class UtilityPaymentService {
         return UtilityPaymentResponse.builder().message("Utility Payment Successfully Processed").transactionId(utilityPaymentResponse.getTransactionId()).build();
     }
 
-    public List<UtilityPayment> readPayments(Pageable pageable) {
+    public PageResponse<UtilityPayment> readPayments(Pageable pageable) {
         Page<UtilityPaymentEntity> allUtilPayments = utilityPaymentRepository.findAll(pageable);
-        return utilityPaymentMapper.convertToDtoList(allUtilPayments.getContent());
+        List<UtilityPayment> payments = utilityPaymentMapper.convertToDtoList(allUtilPayments.getContent());
+        return PageResponse.<UtilityPayment>builder()
+            .content(payments)
+            .pageNumber(allUtilPayments.getNumber())
+            .pageSize(allUtilPayments.getSize())
+            .totalElements(allUtilPayments.getTotalElements())
+            .totalPages(allUtilPayments.getTotalPages())
+            .last(allUtilPayments.isLast())
+            .build();
     }
 }
