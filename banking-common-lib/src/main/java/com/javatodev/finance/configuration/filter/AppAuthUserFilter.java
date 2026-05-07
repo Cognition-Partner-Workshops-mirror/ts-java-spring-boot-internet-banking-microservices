@@ -27,7 +27,7 @@ public class AppAuthUserFilter implements Filter {
         }
         try {
             chain.doFilter(request, response);
-        }finally {
+        } finally {
             ApiRequestContextHolder.clearContext();
         }
     }

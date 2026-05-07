@@ -1,0 +1,2 @@
+// Root build file for the Internet Banking Microservices project.
+// Individual service build configuration is in each subproject's build.gradle.
