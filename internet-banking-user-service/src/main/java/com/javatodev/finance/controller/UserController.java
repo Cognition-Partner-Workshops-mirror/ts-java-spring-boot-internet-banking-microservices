@@ -27,14 +27,14 @@ public class UserController {
     private final UserService userService;
 
     @Operation(summary = "Register User", description = "Create a new user in the banking system")
-    @PostMapping(value = "/register")
+    @PostMapping
     public ResponseEntity<User> createUser(@Valid @RequestBody User request) {
         log.info("Creating user with email {}", request.getEmail());
         return ResponseEntity.ok(userService.createUser(request));
     }
 
     @Operation(summary = "Update User", description = "Update an existing user's information")
-    @PatchMapping(value = "/update/{id}")
+    @PatchMapping(value = "/{id}")
     public ResponseEntity<User> updateUser(@PathVariable("id") Long userId, @RequestBody UserUpdateRequest userUpdateRequest) {
         log.info("Updating user id {}", userId);
         return ResponseEntity.ok(userService.updateUser(userId, userUpdateRequest));

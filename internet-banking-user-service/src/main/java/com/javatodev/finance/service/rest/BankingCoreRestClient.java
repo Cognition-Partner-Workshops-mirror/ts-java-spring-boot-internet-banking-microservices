@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 @FeignClient(name = "core-banking-service", fallback = BankingCoreRestClientFallback.class)
 public interface BankingCoreRestClient {
 
-    @GetMapping("/api/v1/user/{identification}")
+    @GetMapping("/api/v1/users/{identification}")
     UserResponse readUser(@PathVariable("identification") String identification);
 
 }

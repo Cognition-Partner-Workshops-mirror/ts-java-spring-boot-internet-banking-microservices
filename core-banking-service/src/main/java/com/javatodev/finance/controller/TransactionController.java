@@ -20,7 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 @Tag(name = "Transaction Controller", description = "APIs for managing transactions")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping(value = "/api/v1/transaction")
+@RequestMapping(value = "/api/v1/transactions")
 public class TransactionController {
 
     private final TransactionService transactionService;

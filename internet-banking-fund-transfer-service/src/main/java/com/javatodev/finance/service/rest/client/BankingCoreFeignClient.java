@@ -14,10 +14,10 @@ import org.springframework.web.bind.annotation.RequestMethod;
 @FeignClient(value = "core-banking-service", configuration = CustomFeignClientConfiguration.class, fallback = BankingCoreFeignClientFallback.class)
 public interface BankingCoreFeignClient {
 
-    @RequestMapping(path = "/api/v1/account/bank-account/{account_number}", method = RequestMethod.GET)
+    @RequestMapping(path = "/api/v1/accounts/{account_number}", method = RequestMethod.GET)
     AccountResponse readAccount(@PathVariable("account_number") String accountNumber);
 
-    @RequestMapping(path = "/api/v1/transaction/fund-transfer", method = RequestMethod.POST)
+    @RequestMapping(path = "/api/v1/transactions/fund-transfer", method = RequestMethod.POST)
     FundTransferResponse fundTransfer(@RequestBody FundTransferRequest fundTransferRequest);
 
 }
