@@ -4,6 +4,58 @@ This document prioritizes the gaps identified in the [Gap Analysis](./GAP_ANALYS
 
 ---
 
+## Phase 0: Fix Now (Day 1) — Critical Correctness Bug
+
+### 0.1 Fix `availableBalance` Double-Mutation Bug (CX-1 / RE-9)
+
+**Gap:** Every transaction silently corrupts account balances. `TransactionService` updates `actualBalance`, then reads the *already-mutated* value to compute `availableBalance`, effectively applying the amount twice.
+
+**Impact:** After a $100 transfer from a $1000 account: `actualBalance` = $900 (correct), `availableBalance` = $800 (WRONG — should be $900). The error compounds with every transaction.
+
+**Affected locations:**
+- `TransactionService.internalFundTransfer()` lines 90-91 (debit side)
+- `TransactionService.internalFundTransfer()` lines 99-100 (credit side)
+- `TransactionService.utilPayment()` lines 63-64
+
+**Fix:** Compute the new balance once, then assign it to both fields.
+
+**Devin Prompt:**
+```
+In ts-java-spring-boot-internet-banking-microservices, fix a critical balance calculation bug in core-banking-service/src/main/java/com/javatodev/finance/service/TransactionService.java:
+
+BUG: The code does:
+  entity.setActualBalance(entity.getActualBalance().subtract(amount));
+  entity.setAvailableBalance(entity.getActualBalance().subtract(amount));
+
+The second line reads the ALREADY UPDATED actualBalance, so availableBalance gets amount subtracted TWICE.
+
+FIX all three locations:
+
+1. internalFundTransfer() debit (lines 90-91):
+   BigDecimal newFromBalance = fromBankAccountEntity.getActualBalance().subtract(amount);
+   fromBankAccountEntity.setActualBalance(newFromBalance);
+   fromBankAccountEntity.setAvailableBalance(newFromBalance);
+
+2. internalFundTransfer() credit (lines 99-100):
+   BigDecimal newToBalance = toBankAccountEntity.getActualBalance().add(amount);
+   toBankAccountEntity.setActualBalance(newToBalance);
+   toBankAccountEntity.setAvailableBalance(newToBalance);
+
+3. utilPayment() debit (lines 63-64):
+   BigDecimal newBalance = fromAccount.getActualBalance().subtract(utilityPaymentRequest.getAmount());
+   fromAccount.setActualBalance(newBalance);
+   fromAccount.setAvailableBalance(newBalance);
+
+Then add a unit test in TransactionServiceTest that verifies:
+- After a $100 transfer from a $1000 account, BOTH actualBalance AND availableBalance equal $900
+- After a $100 credit to a $500 account, BOTH actualBalance AND availableBalance equal $600
+
+Also create a Flyway migration V1.0.20240101000000__fix_available_balance.sql that reconciles existing data:
+  UPDATE banking_core_account SET available_balance = actual_balance;
+```
+
+---
+
 ## Phase 1: Quick Wins (1-2 weeks)
 
 High-impact items that can be resolved with minimal code changes and low risk of regressions.

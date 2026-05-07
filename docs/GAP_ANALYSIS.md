@@ -149,6 +149,22 @@ This document compares the codebase against industry engineering best practices 
 | RE-6 | Fund transfer not idempotent | High | Medium | `POST /api/v1/transfer` has no idempotency key. Network retries or duplicate submissions could result in double transfers. |
 | RE-7 | No dead letter queue / compensation logic | Medium | Large | If the fund-transfer-service saves `PENDING` but the core-banking call fails partway through, there's no mechanism to detect and resolve stuck transactions. |
 | RE-8 | Balance update race condition | Critical | Medium | `TransactionService.internalFundTransfer()` reads balance, then writes new balance without optimistic locking or `SELECT ... FOR UPDATE`. Concurrent transfers from the same account can overdraw. |
+| RE-9 | **Balance calculation bug — `availableBalance` double-deducted/credited** | Critical | Small | In `TransactionService.internalFundTransfer()` (lines 90-91): `setActualBalance(actual - amount)` then `setAvailableBalance(actualBalance - amount)` — but `actualBalance` was *already mutated* on the previous line, so `availableBalance` ends up as `original - 2*amount`. Same bug on the credit side (lines 99-100) where the destination gets `original + 2*amount`. Identical issue in `utilPayment()` (lines 63-64). **Every transaction corrupts account balances.** This is a live data-integrity bug in the core financial engine. |
+
+---
+
+## 8. Correctness (Bonus — Author's Pick)
+
+### Current State
+The balance update logic in `TransactionService` is the heart of the banking system. It handles all fund movements.
+
+### Gap
+
+| # | Gap | Severity | Effort | Details |
+|---|-----|----------|--------|---------|
+| CX-1 | **Available balance double-mutation bug** | Critical | Small | This is the single most important finding in this assessment. In `core-banking-service/src/main/java/.../service/TransactionService.java`, the pattern `setActualBalance(X.subtract(amount)); setAvailableBalance(getActualBalance().subtract(amount))` reads the **already-updated** `actualBalance` and subtracts `amount` again. After a $100 transfer from an account with $1000: `actualBalance` correctly becomes $900, but `availableBalance` becomes $800 (should be $900). The bug compounds: after 5 transfers of $100, `actualBalance` = $500 (correct) but `availableBalance` = $0 (should be $500). This affects `internalFundTransfer()` debit, credit, AND `utilPayment()`. Fixing this is a 3-line change but requires a data migration to correct all affected account balances in production. |
+
+**Why I care about this one specifically:** This isn't a "best practice gap" — it's a **correctness bug** that silently corrupts financial data on every single transaction. It's the kind of bug that passes code review because the two lines *look* like they're doing the same thing, but the order-of-mutation makes them semantically different. It would cause customer-visible issues (available balance showing less than actual balance, potentially blocking legitimate transactions due to false insufficient-funds checks).
 
 ---
 
@@ -162,5 +178,6 @@ This document compares the codebase against industry engineering best practices 
 | Security | 1 | 2 | 3 | 0 |
 | API Design | 0 | 0 | 3 | 4 |
 | Observability | 0 | 1 | 3 | 2 |
-| Resilience | 2 | 3 | 3 | 0 |
-| **Total** | **5** | **9** | **16** | **12** |
+| Resilience | 3 | 3 | 3 | 0 |
+| Correctness | 1 | 0 | 0 | 0 |
+| **Total** | **7** | **9** | **16** | **12** |
