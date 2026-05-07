@@ -149,7 +149,7 @@ The application comprises **6 microservices** built with Java 21 and Spring Boot
 | `POST` | `/api/v1/bank-users/register` | Register new banking user | `{ email, identification, password }` | `User` |
 | `GET` | `/api/v1/bank-users` | List all users (paginated) | `Pageable` query params | `List<User>` |
 | `GET` | `/api/v1/bank-users/{id}` | Get user by ID | - | `User` |
-| `PUT` | `/api/v1/bank-users/{id}` | Update user status | `{ status }` | `User` |
+| `PATCH` | `/api/v1/bank-users/update/{id}` | Update user status | `{ status }` | `User` |
 
 ### 3.3 Internet Banking Fund Transfer Service (port 8084)
 
@@ -167,7 +167,7 @@ The application comprises **6 microservices** built with Java 21 and Spring Boot
 
 ### 3.5 API Gateway Routes (port 8082)
 
-All external requests pass through the gateway with path-prefix-based routing:
+The gateway routes are defined in the externalized Spring Cloud Config repository, not in the local codebase. Based on the `SecurityConfiguration` path matchers, the inferred routing prefixes are:
 
 | Path Prefix | Target Service |
 |-------------|----------------|
@@ -175,6 +175,8 @@ All external requests pass through the gateway with path-prefix-based routing:
 | `/fund-transfer/**` | `internet-banking-fund-transfer-service` |
 | `/banking-core/**` | `core-banking-service` |
 | `/utility-payment/**` | `internet-banking-utility-payment-service` |
+
+> **Note**: These prefixes are inferred from `SecurityConfiguration.java` path matchers (e.g., `/user/actuator/**`, `/fund-transfer/actuator/**`). The actual route definitions live in the remote config Git repo and could differ.
 
 **Public endpoints** (no auth required):
 - `POST /user/api/v1/bank-users/register`
