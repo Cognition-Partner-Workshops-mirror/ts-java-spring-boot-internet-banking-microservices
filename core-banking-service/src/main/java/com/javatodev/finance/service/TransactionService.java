@@ -12,8 +12,11 @@ import com.javatodev.finance.model.dto.response.FundTransferResponse;
 import com.javatodev.finance.model.dto.response.UtilityPaymentResponse;
 import com.javatodev.finance.model.entity.BankAccountEntity;
 import com.javatodev.finance.model.entity.TransactionEntity;
+import com.javatodev.finance.exception.SimpleBankingGlobalException;
 import com.javatodev.finance.repository.BankAccountRepository;
 import com.javatodev.finance.repository.TransactionRepository;
+
+import com.javatodev.finance.model.AccountStatus;
 
 import org.springframework.stereotype.Service;
 
@@ -28,6 +31,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class TransactionService {
 
+    private static final BigDecimal MAX_TRANSFER_AMOUNT = new BigDecimal("1000000.00");
+    private static final BigDecimal MAX_PAYMENT_AMOUNT = new BigDecimal("100000.00");
+
     private final AccountService accountService;
     private final BankAccountRepository bankAccountRepository;
     private final TransactionRepository transactionRepository;
@@ -37,7 +43,9 @@ public class TransactionService {
         BankAccount fromBankAccount = accountService.readBankAccount(fundTransferRequest.getFromAccount());
         BankAccount toBankAccount = accountService.readBankAccount(fundTransferRequest.getToAccount());
 
-        //validating account balances
+        validateAccountStatus(fromBankAccount);
+        validateAccountStatus(toBankAccount);
+        validateAmountLimit(fundTransferRequest.getAmount(), MAX_TRANSFER_AMOUNT, "fund transfer");
         validateBalance(fromBankAccount, fundTransferRequest.getAmount());
 
         String transactionId = internalFundTransfer(fromBankAccount, toBankAccount, fundTransferRequest.getAmount());
@@ -51,7 +59,8 @@ public class TransactionService {
 
         BankAccount fromBankAccount = accountService.readBankAccount(utilityPaymentRequest.getAccount());
 
-        //validating account balances
+        validateAccountStatus(fromBankAccount);
+        validateAmountLimit(utilityPaymentRequest.getAmount(), MAX_PAYMENT_AMOUNT, "utility payment");
         validateBalance(fromBankAccount, utilityPaymentRequest.getAmount());
 
         UtilityAccount utilityAccount = accountService.readUtilityAccount(utilityPaymentRequest.getProviderId());
@@ -60,8 +69,9 @@ public class TransactionService {
 
         //we can call third party API to process UTIL payment from payment provider from here.
 
-        fromAccount.setActualBalance(fromAccount.getActualBalance().subtract(utilityPaymentRequest.getAmount()));
-        fromAccount.setAvailableBalance(fromAccount.getActualBalance().subtract(utilityPaymentRequest.getAmount()));
+        BigDecimal newBalance = fromAccount.getActualBalance().subtract(utilityPaymentRequest.getAmount());
+        fromAccount.setActualBalance(newBalance);
+        fromAccount.setAvailableBalance(newBalance);
 
         transactionRepository.save(TransactionEntity.builder().transactionType(TransactionType.UTILITY_PAYMENT)
             .account(fromAccount)
@@ -72,6 +82,21 @@ public class TransactionService {
         return UtilityPaymentResponse.builder().message("Utility payment successfully completed")
             .transactionId(transactionId).build();
 
+    }
+
+    private void validateAccountStatus(BankAccount bankAccount) {
+        if (bankAccount.getStatus() != AccountStatus.ACTIVE) {
+            throw new SimpleBankingGlobalException("Account " + bankAccount.getNumber() + " is not active (status: " + bankAccount.getStatus() + ")",
+                GlobalErrorCode.ERROR_ACCOUNT_NOT_ACTIVE);
+        }
+    }
+
+    private void validateAmountLimit(BigDecimal amount, BigDecimal maxAmount, String transactionType) {
+        if (amount.compareTo(maxAmount) > 0) {
+            throw new SimpleBankingGlobalException(
+                "Amount exceeds maximum " + transactionType + " limit of " + maxAmount,
+                GlobalErrorCode.ERROR_AMOUNT_LIMIT_EXCEEDED);
+        }
     }
 
     private void validateBalance(BankAccount bankAccount, BigDecimal amount) {
@@ -87,8 +112,9 @@ public class TransactionService {
         BankAccountEntity fromBankAccountEntity = bankAccountRepository.findByNumber(fromBankAccount.getNumber()).orElseThrow(EntityNotFoundException::new);
         BankAccountEntity toBankAccountEntity = bankAccountRepository.findByNumber(toBankAccount.getNumber()).orElseThrow(EntityNotFoundException::new);
 
-        fromBankAccountEntity.setActualBalance(fromBankAccountEntity.getActualBalance().subtract(amount));
-        fromBankAccountEntity.setAvailableBalance(fromBankAccountEntity.getActualBalance().subtract(amount));
+        BigDecimal newFromBalance = fromBankAccountEntity.getActualBalance().subtract(amount);
+        fromBankAccountEntity.setActualBalance(newFromBalance);
+        fromBankAccountEntity.setAvailableBalance(newFromBalance);
         bankAccountRepository.save(fromBankAccountEntity);
 
         transactionRepository.save(TransactionEntity.builder().transactionType(TransactionType.FUND_TRANSFER)
@@ -96,8 +122,9 @@ public class TransactionService {
             .transactionId(transactionId)
             .account(fromBankAccountEntity).amount(amount.negate()).build());
 
-        toBankAccountEntity.setActualBalance(toBankAccountEntity.getActualBalance().add(amount));
-        toBankAccountEntity.setAvailableBalance(toBankAccountEntity.getActualBalance().add(amount));
+        BigDecimal newToBalance = toBankAccountEntity.getActualBalance().add(amount);
+        toBankAccountEntity.setActualBalance(newToBalance);
+        toBankAccountEntity.setAvailableBalance(newToBalance);
         bankAccountRepository.save(toBankAccountEntity);
 
         transactionRepository.save(TransactionEntity.builder().transactionType(TransactionType.FUND_TRANSFER)

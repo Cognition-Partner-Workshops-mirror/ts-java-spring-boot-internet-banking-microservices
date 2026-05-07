@@ -13,6 +13,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -21,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class UtilityPaymentService {
     private final UtilityPaymentRepository utilityPaymentRepository;
@@ -29,7 +31,7 @@ public class UtilityPaymentService {
     private UtilityPaymentMapper utilityPaymentMapper = new UtilityPaymentMapper();
 
     public UtilityPaymentResponse utilPayment(UtilityPaymentRequest paymentRequest) {
-        log.info("Utility payment processing {}", paymentRequest.toString());
+        log.info("Utility payment processing for provider {} from account {}", paymentRequest.getProviderId(), paymentRequest.getAccount());
 
         UtilityPaymentEntity entity = new UtilityPaymentEntity();
         BeanUtils.copyProperties(paymentRequest, entity);
@@ -37,7 +39,7 @@ public class UtilityPaymentService {
         UtilityPaymentEntity optUtilPayment = utilityPaymentRepository.save(entity);
 
         UtilityPaymentResponse utilityPaymentResponse = bankingCoreRestClient.utilityPayment(paymentRequest);
-        log.info("Transaction response {}", utilityPaymentResponse.toString());
+        log.info("Utility payment transaction completed: {}", utilityPaymentResponse.getTransactionId());
 
         optUtilPayment.setStatus(TransactionStatus.SUCCESS);
         optUtilPayment.setTransactionId(utilityPaymentResponse.getTransactionId());
