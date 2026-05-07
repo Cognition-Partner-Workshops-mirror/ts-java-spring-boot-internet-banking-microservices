@@ -491,9 +491,9 @@ Strategic improvements that require more planning and architectural changes.
 | Phase | Items | Critical | High | Medium | Low |
 |-------|-------|----------|------|--------|-----|
 | **Phase 1** (Quick Wins) | 9 | 4 | 2 | 3 | 0 |
-| **Phase 2** (Important) | 9 | 1 | 4 | 4 | 0 |
-| **Phase 3** (Polish) | 8 | 0 | 1 | 5 | 2 |
-| **Total** | **26** | **5** | **7** | **12** | **2** |
+| **Phase 2** (Important) | 9 | 2 | 4 | 3 | 0 |
+| **Phase 3** (Polish) | 8 | 1 | 1 | 4 | 2 |
+| **Total** | **26** | **7** | **7** | **10** | **2** |
 
 ### Recommended Execution Order
 

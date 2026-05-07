@@ -653,6 +653,6 @@ Similarly, the `availableBalance` bug in `TransactionService` means account bala
 
 | Effort | Count |
 |--------|-------|
-| Small | 16 |
-| Medium | 10 |
+| Small | 19 |
+| Medium | 8 |
 | Large | 4 |
