@@ -320,6 +320,28 @@ The `availableBalance` is set to `actualBalance - amount` **after** `actualBalan
 
 Fund transfer and utility payment endpoints have no idempotency keys. If a client retries a failed request (e.g., due to network timeout), the same transfer could be processed multiple times, resulting in duplicate debits.
 
+### 7.8 No Database-Level Locking on Concurrent Balance Updates
+
+**Severity: Critical | Effort: Small**
+
+This is arguably the most dangerous gap in the entire codebase. `TransactionService` performs a read-then-write on account balances with **no pessimistic or optimistic locking**:
+
+```java
+// internalFundTransfer(), lines 87-92
+BankAccountEntity fromBankAccountEntity = bankAccountRepository.findByNumber(fromBankAccount.getNumber())...;
+fromBankAccountEntity.setActualBalance(fromBankAccountEntity.getActualBalance().subtract(amount));
+bankAccountRepository.save(fromBankAccountEntity);
+```
+
+`BankAccountEntity` has no `@Version` column for optimistic locking, and `BankAccountRepository.findByNumber()` uses no `@Lock(LockModeType.PESSIMISTIC_WRITE)`. If two fund transfers from the same account execute concurrently:
+
+1. Thread A reads balance = $1000
+2. Thread B reads balance = $1000 (same stale value)
+3. Thread A subtracts $600, saves balance = $400
+4. Thread B subtracts $500, saves balance = $500 (overwrites Thread A's write)
+
+Result: $1,100 was debited from a $1,000 account, but the final balance shows $500. The $600 transfer is silently lost. In a banking application, this is a **money-losing data corruption bug** that gets worse under load. Even with `@Transactional` at the class level, the default isolation level (`READ_COMMITTED`) does not prevent this — it only guarantees each individual SQL statement sees committed data, not that the read-modify-write sequence is atomic.
+
 ---
 
 ## Summary Table
@@ -342,6 +364,7 @@ Fund transfer and utility payment endpoints have no idempotency keys. If a clien
 | 7.3 | No retry policies | Resilience | High | Small |
 | 7.4 | No fallback behavior | Resilience | High | Medium |
 | 7.7 | No idempotency protection | Resilience | High | Medium |
+| 7.8 | No database-level locking on concurrent balance updates | Resilience | Critical | Small |
 | 1.1 | No multi-project Gradle build | Code Organization | Medium | Medium |
 | 2.3 | Inconsistent error response structure | Error Handling | Medium | Small |
 | 2.4 | No Feign error decoder in most services | Error Handling | Medium | Small |

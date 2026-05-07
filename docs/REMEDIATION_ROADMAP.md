@@ -23,7 +23,28 @@ The `availableBalance` is being set to `actualBalance - amount` after `actualBal
 
 ---
 
-### 1.2 Fix Transaction Status Not Updated on Failure
+### 1.2 Add Pessimistic Locking on Account Balance Updates
+
+**Gap:** 7.8 | **Severity:** Critical | **Effort:** Small
+
+This is the single most dangerous bug in the codebase. Without database-level locking, concurrent fund transfers from the same account can race: both read the same balance, both pass the `validateBalance` check, and both deduct — resulting in lost writes and silently incorrect balances. In a banking application this means real money loss.
+
+**Devin Prompt:**
+> Add pessimistic locking to prevent concurrent balance corruption in `core-banking-service`:
+> 1. In `BankAccountRepository`, add a new query method with `SELECT ... FOR UPDATE` locking:
+>    ```java
+>    @Lock(LockModeType.PESSIMISTIC_WRITE)
+>    @Query("SELECT b FROM BankAccountEntity b WHERE b.number = :accountNumber")
+>    Optional<BankAccountEntity> findByNumberForUpdate(@Param("accountNumber") String accountNumber);
+>    ```
+> 2. In `TransactionService.internalFundTransfer()`, replace both `bankAccountRepository.findByNumber()` calls (lines 87-88) with `bankAccountRepository.findByNumberForUpdate()` so the rows are locked for the duration of the transaction.
+> 3. In `TransactionService.utilPayment()`, replace the `bankAccountRepository.findByNumber()` call (line 59) with `findByNumberForUpdate()`.
+> 4. Add an integration test using `@DataJpaTest` that runs two concurrent transfers from the same account using `ExecutorService` and verifies the final balance is correct (no lost updates).
+> 5. As a defense-in-depth measure, also add a `@Version` column to `BankAccountEntity` (`private Long version;` with `@Version` annotation) so that even if a code path misses the pessimistic lock, Hibernate will throw `OptimisticLockException` on stale writes instead of silently overwriting.
+
+---
+
+### 1.3 Fix Transaction Status Not Updated on Failure
 
 **Gap:** 7.5 | **Severity:** Critical | **Effort:** Small
 
@@ -34,7 +55,7 @@ When Feign calls to Core Banking fail, fund transfer and utility payment entitie
 
 ---
 
-### 1.3 Fix Exception Handlers — Proper HTTP Status Codes
+### 1.4 Fix Exception Handlers — Proper HTTP Status Codes
 
 **Gap:** 2.1, 2.2 | **Severity:** Critical + High | **Effort:** Small
 
@@ -48,7 +69,7 @@ When Feign calls to Core Banking fail, fund transfer and utility payment entitie
 
 ---
 
-### 1.4 Add Input Validation to All Request DTOs
+### 1.5 Add Input Validation to All Request DTOs
 
 **Gap:** 4.2 | **Severity:** Critical | **Effort:** Small-Medium
 
@@ -73,7 +94,7 @@ When Feign calls to Core Banking fail, fund transfer and utility payment entitie
 
 ---
 
-### 1.5 Configure Feign Timeouts
+### 1.6 Configure Feign Timeouts
 
 **Gap:** 7.2 | **Severity:** High | **Effort:** Small
 
@@ -82,7 +103,7 @@ When Feign calls to Core Banking fail, fund transfer and utility payment entitie
 
 ---
 
-### 1.6 Configure Feign Retry Policies
+### 1.7 Configure Feign Retry Policies
 
 **Gap:** 7.3 | **Severity:** High | **Effort:** Small
 
@@ -91,7 +112,7 @@ When Feign calls to Core Banking fail, fund transfer and utility payment entitie
 
 ---
 
-### 1.7 Externalize Hardcoded Credentials
+### 1.8 Externalize Hardcoded Credentials
 
 **Gap:** 4.1 | **Severity:** Critical | **Effort:** Small
 
@@ -100,7 +121,7 @@ When Feign calls to Core Banking fail, fund transfer and utility payment entitie
 
 ---
 
-### 1.8 Add Feign Error Decoder to All Services
+### 1.9 Add Feign Error Decoder to All Services
 
 **Gap:** 2.4 | **Severity:** Medium | **Effort:** Small
 
@@ -109,7 +130,7 @@ When Feign calls to Core Banking fail, fund transfer and utility payment entitie
 
 ---
 
-### 1.9 Fix OpenAPI Starter Dependency
+### 1.10 Fix OpenAPI Starter Dependency
 
 **Gap:** 5.4 | **Severity:** Medium | **Effort:** Small
 
