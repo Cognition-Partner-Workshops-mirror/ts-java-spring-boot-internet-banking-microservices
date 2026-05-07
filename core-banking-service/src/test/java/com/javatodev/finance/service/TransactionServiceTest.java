@@ -115,6 +115,11 @@ class TransactionServiceTest {
         UtilityPaymentResponse response = transactionService.utilPayment(request);
         assertNotNull(response.getTransactionId());
         assertEquals("Utility payment successfully completed", response.getMessage());
+
+        ArgumentCaptor<TransactionEntity> txCaptor = ArgumentCaptor.forClass(TransactionEntity.class);
+        verify(transactionRepository).save(txCaptor.capture());
+        BankAccountEntity savedFrom = txCaptor.getValue().getAccount();
+        assertEquals(savedFrom.getActualBalance(), savedFrom.getAvailableBalance());
     }
 
     @Test
@@ -160,8 +165,15 @@ class TransactionServiceTest {
         when(bankAccountRepository.findByNumber("A2")).thenReturn(Optional.of(toEntity));
         String transactionId = transactionService.internalFundTransfer(from, to, BigDecimal.valueOf(100));
         assertNotNull(transactionId);
-        verify(bankAccountRepository, times(2)).save(any(BankAccountEntity.class));
+
+        ArgumentCaptor<BankAccountEntity> accountCaptor = ArgumentCaptor.forClass(BankAccountEntity.class);
+        verify(bankAccountRepository, times(2)).save(accountCaptor.capture());
         verify(transactionRepository, times(2)).save(any(TransactionEntity.class));
+
+        BankAccountEntity savedFrom = accountCaptor.getAllValues().get(0);
+        BankAccountEntity savedTo = accountCaptor.getAllValues().get(1);
+        assertEquals(savedFrom.getActualBalance(), savedFrom.getAvailableBalance());
+        assertEquals(savedTo.getActualBalance(), savedTo.getAvailableBalance());
     }
 
     @Test
@@ -179,8 +191,17 @@ class TransactionServiceTest {
         BankAccount account = new BankAccount();
         account.setNumber("A1");
         account.setActualBalance(BigDecimal.valueOf(50));
+        when(accountService.readBankAccount("A1")).thenReturn(account);
+        BankAccount toAccount = new BankAccount();
+        toAccount.setNumber("A2");
+        toAccount.setActualBalance(BigDecimal.valueOf(50));
+        when(accountService.readBankAccount("A2")).thenReturn(toAccount);
+        FundTransferRequest request = new FundTransferRequest();
+        request.setFromAccount("A1");
+        request.setToAccount("A2");
+        request.setAmount(BigDecimal.valueOf(100));
         assertThrows(InsufficientFundsException.class, () -> {
-            transactionService.fundTransfer(new FundTransferRequest("A1", "A2", BigDecimal.valueOf(100)));
+            transactionService.fundTransfer(request);
         });
     }
 }
