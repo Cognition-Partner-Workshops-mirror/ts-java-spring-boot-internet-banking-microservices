@@ -12,6 +12,22 @@ spring:
       circuitbreaker:
         enabled: true
 
+management:
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
 resilience4j:
   circuitbreaker:
     configs:
