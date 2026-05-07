@@ -461,10 +461,10 @@ Same bug exists in `utilPayment()` (lines 63-64) and on the credit side (lines 9
 
 | Severity | Count |
 |----------|-------|
-| Critical | 10    |
-| High     | 8     |
-| Medium   | 13    |
-| Low      | 6     |
+| Critical | 9     |
+| High     | 7     |
+| Medium   | 12    |
+| Low      | 9     |
 
 ### Category Distribution
 
@@ -476,4 +476,4 @@ Same bug exists in `utilPayment()` (lines 63-64) and on the credit side (lines 9
 | Security          | 3        | 0    | 4      | 0   | 7     |
 | API Design        | 0        | 0    | 3      | 3   | 6     |
 | Observability     | 0        | 0    | 1      | 3   | 4     |
-| Resilience        | 5        | 5    | 0      | 0   | 8     |  <!-- note: GAP-37 is High not Critical -->
+| Resilience        | 4        | 4    | 0      | 0   | 8     |
