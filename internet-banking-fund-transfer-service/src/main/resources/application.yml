@@ -1,3 +1,9 @@
 spring:
   application:
     name: internet-banking-fund-transfer-service
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
