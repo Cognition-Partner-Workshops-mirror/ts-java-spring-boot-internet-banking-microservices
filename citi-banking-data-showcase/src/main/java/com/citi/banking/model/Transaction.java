@@ -1,6 +1,5 @@
 package com.citi.banking.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -24,9 +23,8 @@ public class Transaction {
     @Column(unique = true, nullable = false)
     private String transactionId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "account_id", nullable = false)
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Account account;
 
     @Enumerated(EnumType.STRING)
