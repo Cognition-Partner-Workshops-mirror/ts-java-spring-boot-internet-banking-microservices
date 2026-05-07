@@ -1,2 +1,4 @@
 .idea
 .env
+banking-common/.gradle/
+banking-common/build/
