@@ -76,12 +76,23 @@ services:
       javatodev_ib_network:
         ipv4_address: 172.25.0.7
 
+  redis:
+    image: cgr.dev/chainguard/redis:latest
+    container_name: redis_rate_limiter
+    ports:
+      - 6379:6379
+    networks:
+      javatodev_ib_network:
+        ipv4_address: 172.25.0.13
+
   internet-banking-api-gateway:
     image: javatodev/internet-banking-api-gateway
     container_name: internet-banking-api-gateway
+    depends_on:
+      - redis
     ports:
       - 8082:8082
-    entrypoint: ["./wait-for-it.sh", "internet-banking-service-registry:8081", "--timeout=50", "--", "./wait-for-it.sh", "internet-banking-config-server:8090", "--timeout=50", "--", "java", "-jar", "-Dspring.profiles.active=docker", "/app.jar"]
+    entrypoint: ["./wait-for-it.sh", "internet-banking-service-registry:8081", "--timeout=50", "--", "./wait-for-it.sh", "internet-banking-config-server:8090", "--timeout=50", "--", "./wait-for-it.sh", "redis:6379", "--timeout=50", "--", "java", "-jar", "-Dspring.profiles.active=docker", "/app.jar"]
     networks:
       javatodev_ib_network:
         ipv4_address: 172.25.0.6
