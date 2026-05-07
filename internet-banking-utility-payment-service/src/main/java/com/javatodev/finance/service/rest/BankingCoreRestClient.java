@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
-@FeignClient(name = "core-banking-service", configuration = CustomFeignClientConfiguration.class)
+@FeignClient(name = "core-banking-service", configuration = CustomFeignClientConfiguration.class, fallback = BankingCoreRestClientFallback.class)
 public interface BankingCoreRestClient {
 
     @RequestMapping(path = "/api/v1/account/bank-account/{account_number}", method = RequestMethod.GET)

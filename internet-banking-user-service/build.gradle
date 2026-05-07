@@ -39,6 +39,7 @@ dependencies {
 
     //Open feign
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+    implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j'
     implementation 'io.github.openfeign:feign-okhttp:13.2.1'
 
     //SPRING CLOUD CONFIG
