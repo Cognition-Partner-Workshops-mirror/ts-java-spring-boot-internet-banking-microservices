@@ -22,7 +22,15 @@ $ git clone https://github.com/JavatoDev-com/internet-banking-concept-microservi
 ```shell
 $ cd internet-banking-concept-microservices/docker-compose
 ```
-3. Start application using docker-compose:
+
+3. Create your `.env` file from the example and fill in real passwords:
+
+```shell
+$ cp .env.example .env
+# Edit .env and replace placeholder values with your own passwords
+```
+
+4. Start application using docker-compose:
 
 ```shell
 $ docker-compose up -d
@@ -58,9 +66,7 @@ By default we have dummy accounts details with user details under core-banking-d
 
 Proceed the testings with `AUTHENTICATION` API request under BANKING_CORE_MICROSERVICES COLLECTION.
 
-```
-Test Credentials : ib_admin@javatodev.com / 5V7huE3G86uB
-```
+Test credentials are provisioned through the Keycloak realm import. See the Keycloak admin console at `http://localhost:8080` (credentials configured in your `.env` file) to view or manage test users.
 
 ### Contribution
 

@@ -1,3 +1,3 @@
 FROM mysql:8.4.0
-ENV MYSQL_ROOT_PASSWORD woVERANKliGharym
-COPY ./privileges.sql /docker-entrypoint-initdb.d/
+COPY ./privileges.sql /docker-entrypoint-initdb.d/01-databases.sql
+COPY ./init-user.sh /docker-entrypoint-initdb.d/02-init-user.sh
