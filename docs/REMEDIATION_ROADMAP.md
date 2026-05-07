@@ -254,7 +254,12 @@ Fix the OpenAPI dependency in these services:
 Replace:
   implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.1.0'
 With:
-  implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
+  implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.1.0'
+
+Note: Keep version 2.1.0 (same as the existing webflux dependency) to avoid
+introducing untested version changes. The springdoc-openapi 2.x series is
+compatible with Spring Boot 3.x. You can upgrade to a newer 2.x release
+(e.g., 2.7.0) separately after verifying compatibility with Spring Boot 3.2.4.
 
 Verify that /swagger-ui.html and /v3/api-docs endpoints work correctly.
 Also add typed ResponseEntity<T> generics to all controller methods so the
