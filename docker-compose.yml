@@ -1,0 +1,243 @@
+version: '3.8'
+
+services:
+
+  # ─── Infrastructure ───────────────────────────────────────────────
+
+  zipkin:
+    image: openzipkin/zipkin:3
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      banking_network:
+        ipv4_address: 172.25.0.12
+
+  keycloak_db:
+    image: postgres:15
+    container_name: keycloak_db
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-password}
+    volumes:
+      - keycloak_pg_data:/var/lib/postgresql/data
+    networks:
+      banking_network:
+        ipv4_address: 172.25.0.10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.7
+    container_name: keycloak
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak_db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-password}
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-password}
+    command: ["start-dev", "--import-realm"]
+    depends_on:
+      - keycloak_db
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./docker-compose/keycloak:/opt/keycloak/data/import
+    networks:
+      banking_network:
+        ipv4_address: 172.25.0.11
+
+  mysql:
+    build: ./docker-compose/mysql
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-woVERANKliGharym}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      banking_network:
+        ipv4_address: 172.25.0.9
+
+  # ─── Platform Services ────────────────────────────────────────────
+
+  config-server:
+    image: javatodev/internet-banking-config-server
+    container_name: config-server
+    ports:
+      - "8090:8090"
+    networks:
+      banking_network:
+        ipv4_address: 172.25.0.8
+
+  service-registry:
+    image: javatodev/internet-banking-service-registry
+    container_name: service-registry
+    ports:
+      - "8081:8081"
+    networks:
+      banking_network:
+        ipv4_address: 172.25.0.7
+
+  # ─── Application Services ─────────────────────────────────────────
+
+  api-gateway:
+    image: javatodev/internet-banking-api-gateway
+    container_name: api-gateway
+    ports:
+      - "8082:8082"
+    entrypoint:
+      - ./wait-for-it.sh
+      - service-registry:8081
+      - --timeout=50
+      - --
+      - ./wait-for-it.sh
+      - config-server:8090
+      - --timeout=50
+      - --
+      - java
+      - -jar
+      - -Dspring.profiles.active=docker
+      - /app.jar
+    depends_on:
+      - config-server
+      - service-registry
+      - keycloak
+    networks:
+      banking_network:
+        ipv4_address: 172.25.0.6
+
+  user-service:
+    image: javatodev/internet-banking-user-service
+    container_name: user-service
+    ports:
+      - "8083:8083"
+    entrypoint:
+      - ./wait-for-it.sh
+      - service-registry:8081
+      - --timeout=50
+      - --
+      - ./wait-for-it.sh
+      - config-server:8090
+      - --timeout=50
+      - --
+      - ./wait-for-it.sh
+      - mysql:3306
+      - --timeout=50
+      - --
+      - java
+      - -jar
+      - -Dspring.profiles.active=docker
+      - /app.jar
+    depends_on:
+      - config-server
+      - service-registry
+      - mysql
+      - keycloak
+    networks:
+      banking_network:
+        ipv4_address: 172.25.0.5
+
+  fund-transfer-service:
+    image: javatodev/internet-banking-fund-transfer-service
+    container_name: fund-transfer-service
+    ports:
+      - "8084:8084"
+    entrypoint:
+      - ./wait-for-it.sh
+      - service-registry:8081
+      - --timeout=50
+      - --
+      - ./wait-for-it.sh
+      - config-server:8090
+      - --timeout=50
+      - --
+      - ./wait-for-it.sh
+      - mysql:3306
+      - --timeout=50
+      - --
+      - java
+      - -jar
+      - -Dspring.profiles.active=docker
+      - /app.jar
+    depends_on:
+      - config-server
+      - service-registry
+      - mysql
+    networks:
+      banking_network:
+        ipv4_address: 172.25.0.4
+
+  utility-payment-service:
+    image: javatodev/internet-banking-utility-payment-service
+    container_name: utility-payment-service
+    ports:
+      - "8085:8085"
+    entrypoint:
+      - ./wait-for-it.sh
+      - service-registry:8081
+      - --timeout=50
+      - --
+      - ./wait-for-it.sh
+      - config-server:8090
+      - --timeout=50
+      - --
+      - ./wait-for-it.sh
+      - mysql:3306
+      - --timeout=50
+      - --
+      - java
+      - -jar
+      - -Dspring.profiles.active=docker
+      - /app.jar
+    depends_on:
+      - config-server
+      - service-registry
+      - mysql
+    networks:
+      banking_network:
+        ipv4_address: 172.25.0.3
+
+  core-banking-service:
+    image: javatodev/core-banking-service
+    container_name: core-banking-service
+    ports:
+      - "8092:8092"
+    entrypoint:
+      - ./wait-for-it.sh
+      - service-registry:8081
+      - --timeout=50
+      - --
+      - ./wait-for-it.sh
+      - config-server:8090
+      - --timeout=50
+      - --
+      - ./wait-for-it.sh
+      - mysql:3306
+      - --timeout=50
+      - --
+      - java
+      - -jar
+      - -Dspring.profiles.active=docker
+      - /app.jar
+    depends_on:
+      - config-server
+      - service-registry
+      - mysql
+    networks:
+      banking_network:
+        ipv4_address: 172.25.0.2
+
+volumes:
+  keycloak_pg_data:
+  mysql_data:
+
+networks:
+  banking_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.25.0.0/16
+          gateway: 172.25.0.1
