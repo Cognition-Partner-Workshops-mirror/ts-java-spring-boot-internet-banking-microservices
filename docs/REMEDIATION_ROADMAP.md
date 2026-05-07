@@ -9,7 +9,7 @@ This roadmap organizes the gaps identified in the [Gap Analysis](./GAP_ANALYSIS.
 These items address critical or high-severity gaps that can be resolved quickly. Prioritized by risk to data integrity and security.
 
 ### 1.1 Fix Balance Calculation Bug
-**Gap**: 7.7 | **Severity**: Critical | **Effort**: Small
+**Gap**: 7.8 | **Severity**: Critical | **Effort**: Small
 
 The `availableBalance` is double-subtracted in `TransactionService.internalFundTransfer()` and `utilPayment()`.
 
@@ -18,7 +18,17 @@ The `availableBalance` is double-subtracted in `TransactionService.internalFundT
 
 ---
 
-### 1.2 Add Input Validation to All Request DTOs
+### 1.2 Fix Dangerous JPA Relationship on TransactionEntity
+**Gap**: 7.7 | **Severity**: Critical | **Effort**: Small
+
+`TransactionEntity.account` uses `@OneToOne(cascade = CascadeType.ALL)` which is wrong in two ways: the cardinality should be `@ManyToOne` (many transactions per account), and `CascadeType.ALL` means deleting a transaction cascade-deletes the bank account (and through `UserEntity.accounts` cascade, potentially all of a user's accounts and transactions).
+
+**Sample Devin Prompt**:
+> In `core-banking-service/src/main/java/com/javatodev/finance/model/entity/TransactionEntity.java`, fix the JPA relationship on the `account` field. Change `@OneToOne(cascade = CascadeType.ALL)` to `@ManyToOne(fetch = FetchType.LAZY)` — multiple transactions reference the same account, and deleting a transaction must never delete the account. Remove `CascadeType.ALL` entirely; transaction records should not cascade any operations to bank accounts. Verify the Flyway migration schema is compatible (the `account_id` FK column already supports many-to-one). Add a unit test that creates multiple `TransactionEntity` records referencing the same `BankAccountEntity` to confirm the relationship works correctly.
+
+---
+
+### 1.3 Add Input Validation to All Request DTOs
 **Gap**: 4.1 | **Severity**: Critical | **Effort**: Small
 
 **Sample Devin Prompt**:
@@ -26,7 +36,7 @@ The `availableBalance` is double-subtracted in `TransactionService.internalFundT
 
 ---
 
-### 1.3 Fix Error Response Consistency and HTTP Status Codes
+### 1.4 Fix Error Response Consistency and HTTP Status Codes
 **Gap**: 2.1, 2.2, 2.4 | **Severity**: Critical/High | **Effort**: Small
 
 **Sample Devin Prompt**:
@@ -34,14 +44,14 @@ The `availableBalance` is double-subtracted in `TransactionService.internalFundT
 
 ---
 
-### 1.4 Stop Exception Information Leakage
+### 1.5 Stop Exception Information Leakage
 **Gap**: 2.4 | **Severity**: Critical | **Effort**: Small
 
-(Covered by 1.3 above - the catch-all handler fix.)
+(Covered by 1.4 above - the catch-all handler fix.)
 
 ---
 
-### 1.5 Add Feign Timeout Configuration
+### 1.6 Add Feign Timeout Configuration
 **Gap**: 7.3 | **Severity**: High | **Effort**: Small
 
 **Sample Devin Prompt**:
@@ -49,7 +59,7 @@ The `availableBalance` is double-subtracted in `TransactionService.internalFundT
 
 ---
 
-### 1.6 Add Feign Retry Policies
+### 1.7 Add Feign Retry Policies
 **Gap**: 7.2 | **Severity**: High | **Effort**: Small
 
 **Sample Devin Prompt**:
@@ -57,7 +67,7 @@ The `availableBalance` is double-subtracted in `TransactionService.internalFundT
 
 ---
 
-### 1.7 Externalize Docker Compose Secrets
+### 1.8 Externalize Docker Compose Secrets
 **Gap**: 4.2 | **Severity**: High | **Effort**: Small
 
 **Sample Devin Prompt**:
@@ -65,7 +75,7 @@ The `availableBalance` is double-subtracted in `TransactionService.internalFundT
 
 ---
 
-### 1.8 Fix OpenAPI Dependency (WebFlux vs Servlet)
+### 1.9 Fix OpenAPI Dependency (WebFlux vs Servlet)
 **Gap**: 5.2 | **Severity**: Medium | **Effort**: Small
 
 **Sample Devin Prompt**:
@@ -73,7 +83,7 @@ The `availableBalance` is double-subtracted in `TransactionService.internalFundT
 
 ---
 
-### 1.9 Fix Raw ResponseEntity Types
+### 1.10 Fix Raw ResponseEntity Types
 **Gap**: 2.3 | **Severity**: Medium | **Effort**: Small
 
 **Sample Devin Prompt**:
@@ -81,7 +91,7 @@ The `availableBalance` is double-subtracted in `TransactionService.internalFundT
 
 ---
 
-### 1.10 Return Pagination Metadata
+### 1.11 Return Pagination Metadata
 **Gap**: 5.3 | **Severity**: Medium | **Effort**: Small
 
 **Sample Devin Prompt**:
@@ -89,7 +99,7 @@ The `availableBalance` is double-subtracted in `TransactionService.internalFundT
 
 ---
 
-### 1.11 Fix ApplicationTests to Not Require Infrastructure
+### 1.12 Fix ApplicationTests to Not Require Infrastructure
 **Gap**: 3.4 | **Severity**: Medium | **Effort**: Small
 
 **Sample Devin Prompt**:
@@ -280,8 +290,8 @@ These items address structural and resilience concerns that require more substan
 
 | Phase | Items | Estimated Effort | Focus |
 |-------|-------|-----------------|-------|
-| **Phase 1** | 11 items | ~5-7 days | Fix critical bugs, security holes, and basic quality |
+| **Phase 1** | 12 items | ~5-8 days | Fix critical bugs, security holes, and basic quality |
 | **Phase 2** | 11 items | ~10-15 days | Resilience, shared library, testing, observability |
 | **Phase 3** | 10 items | ~10-15 days | Contract tests, saga pattern, API polish, DX improvements |
 
-**Recommended starting order within Phase 1**: 1.1 (balance bug) -> 1.2 (validation) -> 1.3 (error handling) -> 1.5/1.6 (timeouts/retries) -> 1.7 (secrets) -> remaining items.
+**Recommended starting order within Phase 1**: 1.1 (balance bug) -> 1.2 (JPA relationship fix) -> 1.3 (validation) -> 1.4 (error handling) -> 1.6/1.7 (timeouts/retries) -> 1.8 (secrets) -> remaining items.

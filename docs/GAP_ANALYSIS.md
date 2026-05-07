@@ -357,7 +357,16 @@ This document compares the current codebase against industry engineering best pr
 | **Severity** | Critical |
 | **Effort** | Large |
 
-### 7.7 Balance Calculation Bug
+### 7.7 Dangerous JPA Relationship on TransactionEntity
+
+| | |
+|---|---|
+| **Gap** | `TransactionEntity.account` is mapped as `@OneToOne(cascade = CascadeType.ALL)` to `BankAccountEntity`. This is wrong in two ways: (1) **`@OneToOne` is semantically incorrect** — a single account has many transactions (a fund transfer creates two `TransactionEntity` records referencing the same accounts), so this should be `@ManyToOne`. (2) **`CascadeType.ALL` includes `REMOVE`** — deleting a transaction record would cascade-delete the associated `BankAccountEntity`. Since `UserEntity.accounts` also uses `CascadeType.ALL`, this can chain-delete all of a user's accounts and their transactions. One accidental transaction deletion could wipe out a customer's entire banking data. |
+| **Impact** | Incorrect cardinality constraint; catastrophic cascade-delete risk on financial records. |
+| **Severity** | Critical |
+| **Effort** | Small |
+
+### 7.8 Balance Calculation Bug
 
 | | |
 |---|---|
@@ -378,5 +387,5 @@ This document compares the current codebase against industry engineering best pr
 | Security | 1 | 2 | 2 | 2 | 7 |
 | API Design | 0 | 0 | 2 | 3 | 5 |
 | Observability | 0 | 0 | 4 | 1 | 5 |
-| Resilience | 4 | 2 | 1 | 0 | 7 |
-| **Total** | **8** | **9** | **12** | **8** | **37** |
+| Resilience | 5 | 2 | 1 | 0 | 8 |
+| **Total** | **9** | **9** | **12** | **8** | **38** |
