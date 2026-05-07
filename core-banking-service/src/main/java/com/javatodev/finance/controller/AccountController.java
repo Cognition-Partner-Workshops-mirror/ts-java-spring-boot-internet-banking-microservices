@@ -16,21 +16,21 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Tag(name = "Account Controller", description = "APIs for managing accounts")
 @RestController
-@RequestMapping(value = "/api/v1/account")
+@RequestMapping
 @RequiredArgsConstructor
 public class AccountController {
 
     private final AccountService accountService;
 
     @Operation(summary = "Get Bank Account by Account Number", description = "Retrieve bank account details by account number")
-    @GetMapping("/bank-account/{account_number}")
+    @GetMapping("/api/v1/accounts/{account_number}")
     public ResponseEntity getBankAccount(@PathVariable("account_number") String accountNumber) {
         log.info("Reading account by ID {}", accountNumber);
         return ResponseEntity.ok(accountService.readBankAccount(accountNumber));
     }
 
     @Operation(summary = "Get Utility Account by Account Name", description = "Retrieve utility account details by account name")
-    @GetMapping("/util-account/{account_name}")
+    @GetMapping("/api/v1/utility-accounts/{account_name}")
     public ResponseEntity getUtilityAccount(@PathVariable("account_name") String providerName) {
         log.info("Reading utitlity account by ID {}", providerName);
         return ResponseEntity.ok(accountService.readUtilityAccount(providerName));

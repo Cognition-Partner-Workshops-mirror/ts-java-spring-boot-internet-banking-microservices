@@ -1,6 +1,7 @@
 package com.javatodev.finance.service;
 
 import com.javatodev.finance.exception.*;
+import com.javatodev.finance.model.dto.PageResponse;
 import com.javatodev.finance.model.dto.Status;
 import com.javatodev.finance.model.dto.User;
 import com.javatodev.finance.model.dto.UserUpdateRequest;
@@ -77,7 +78,7 @@ public class UserService {
 
     }
 
-    public List<User> readUsers(Pageable pageable) {
+    public PageResponse<User> readUsers(Pageable pageable) {
         Page<UserEntity> allUsersInDb = userRepository.findAll(pageable);
         List<User> users = userMapper.convertToDtoList(allUsersInDb.getContent());
         users.forEach(user -> {
@@ -86,7 +87,14 @@ public class UserService {
             user.setEmail(userRepresentation.getEmail());
             user.setIdentification(user.getIdentification());
         });
-        return users;
+        return PageResponse.<User>builder()
+            .content(users)
+            .pageNumber(allUsersInDb.getNumber())
+            .pageSize(allUsersInDb.getSize())
+            .totalElements(allUsersInDb.getTotalElements())
+            .totalPages(allUsersInDb.getTotalPages())
+            .last(allUsersInDb.isLast())
+            .build();
     }
 
     public User readUser(Long userId) {

@@ -25,6 +25,9 @@ public class UtilityPaymentEntity extends AuditAware {
     private String account;
     private String transactionId;
 
+    @Column(unique = true)
+    private String idempotencyKey;
+
     @Enumerated(EnumType.STRING)
     private TransactionStatus status;
 

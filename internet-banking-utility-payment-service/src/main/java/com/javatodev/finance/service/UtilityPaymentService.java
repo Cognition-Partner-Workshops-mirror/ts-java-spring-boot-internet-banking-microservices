@@ -5,6 +5,7 @@ import com.javatodev.finance.model.dto.UtilityPayment;
 import com.javatodev.finance.model.entity.UtilityPaymentEntity;
 import com.javatodev.finance.model.mapper.UtilityPaymentMapper;
 import com.javatodev.finance.model.rest.request.UtilityPaymentRequest;
+import com.javatodev.finance.model.rest.response.PageResponse;
 import com.javatodev.finance.model.rest.response.UtilityPaymentResponse;
 import com.javatodev.finance.repository.UtilityPaymentRepository;
 import com.javatodev.finance.service.rest.BankingCoreRestClient;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,16 +30,28 @@ public class UtilityPaymentService {
 
     private UtilityPaymentMapper utilityPaymentMapper = new UtilityPaymentMapper();
 
-    public UtilityPaymentResponse utilPayment(UtilityPaymentRequest paymentRequest) {
-        log.info("Utility payment processing {}", paymentRequest.toString());
+    public UtilityPaymentResponse utilPayment(UtilityPaymentRequest paymentRequest, String idempotencyKey) {
+        log.info("Utility payment processing");
+
+        if (idempotencyKey != null) {
+            Optional<UtilityPaymentEntity> existing = utilityPaymentRepository.findByIdempotencyKey(idempotencyKey);
+            if (existing.isPresent()) {
+                log.info("Duplicate request detected for idempotency key {}", idempotencyKey);
+                return UtilityPaymentResponse.builder()
+                    .message("Utility Payment Successfully Processed")
+                    .transactionId(existing.get().getTransactionId())
+                    .build();
+            }
+        }
 
         UtilityPaymentEntity entity = new UtilityPaymentEntity();
         BeanUtils.copyProperties(paymentRequest, entity);
         entity.setStatus(TransactionStatus.PROCESSING);
+        entity.setIdempotencyKey(idempotencyKey);
         UtilityPaymentEntity optUtilPayment = utilityPaymentRepository.save(entity);
 
         UtilityPaymentResponse utilityPaymentResponse = bankingCoreRestClient.utilityPayment(paymentRequest);
-        log.info("Transaction response {}", utilityPaymentResponse.toString());
+        log.info("Utility payment transaction completed with id {}", utilityPaymentResponse.getTransactionId());
 
         optUtilPayment.setStatus(TransactionStatus.SUCCESS);
         optUtilPayment.setTransactionId(utilityPaymentResponse.getTransactionId());
@@ -46,8 +60,16 @@ public class UtilityPaymentService {
         return UtilityPaymentResponse.builder().message("Utility Payment Successfully Processed").transactionId(utilityPaymentResponse.getTransactionId()).build();
     }
 
-    public List<UtilityPayment> readPayments(Pageable pageable) {
+    public PageResponse<UtilityPayment> readPayments(Pageable pageable) {
         Page<UtilityPaymentEntity> allUtilPayments = utilityPaymentRepository.findAll(pageable);
-        return utilityPaymentMapper.convertToDtoList(allUtilPayments.getContent());
+        List<UtilityPayment> payments = utilityPaymentMapper.convertToDtoList(allUtilPayments.getContent());
+        return PageResponse.<UtilityPayment>builder()
+            .content(payments)
+            .pageNumber(allUtilPayments.getNumber())
+            .pageSize(allUtilPayments.getSize())
+            .totalElements(allUtilPayments.getTotalElements())
+            .totalPages(allUtilPayments.getTotalPages())
+            .last(allUtilPayments.isLast())
+            .build();
     }
 }

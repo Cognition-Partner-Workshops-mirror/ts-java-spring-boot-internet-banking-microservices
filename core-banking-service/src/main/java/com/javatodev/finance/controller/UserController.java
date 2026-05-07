@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Tag(name = "User Controller", description = "APIs for managing users")
 @RestController
-@RequestMapping(value = "/api/v1/user")
+@RequestMapping(value = "/api/v1/users")
 @RequiredArgsConstructor
 public class UserController {
 

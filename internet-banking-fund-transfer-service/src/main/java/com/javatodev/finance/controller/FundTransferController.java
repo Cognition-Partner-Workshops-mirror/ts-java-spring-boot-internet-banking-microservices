@@ -5,11 +5,13 @@ import com.javatodev.finance.service.FundTransferService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,9 +29,11 @@ public class FundTransferController {
 
     @Operation(summary = "Send Fund Transfer", description = "Process a fund transfer request")
     @PostMapping
-    public ResponseEntity sendFundTransfer(@RequestBody FundTransferRequest fundTransferRequest) {
-        log.info("Got fund transfer request from API {}", fundTransferRequest.toString());
-        return ResponseEntity.ok(fundTransferService.fundTransfer(fundTransferRequest));
+    public ResponseEntity sendFundTransfer(
+            @Valid @RequestBody FundTransferRequest fundTransferRequest,
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
+        log.info("Got fund transfer request from API");
+        return ResponseEntity.ok(fundTransferService.fundTransfer(fundTransferRequest, idempotencyKey));
     }
 
     @Operation(summary = "Read Fund Transfers", description = "Retrieve a paginated list of fund transfers")

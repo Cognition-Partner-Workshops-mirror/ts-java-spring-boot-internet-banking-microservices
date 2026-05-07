@@ -1,1 +1,3 @@
 rootProject.name = 'core-banking-service'
+
+includeBuild('../banking-common')

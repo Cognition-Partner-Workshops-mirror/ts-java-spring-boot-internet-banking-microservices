@@ -1,3 +1,19 @@
 spring:
   application:
     name: core-banking-service
+
+management:
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
