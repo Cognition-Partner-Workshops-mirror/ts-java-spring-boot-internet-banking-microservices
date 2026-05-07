@@ -2,3 +2,11 @@ spring:
   application:
     name: internet-banking-utility-payment-service
 
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+
