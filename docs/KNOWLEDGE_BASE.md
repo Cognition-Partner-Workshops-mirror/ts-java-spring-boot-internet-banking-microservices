@@ -6,6 +6,8 @@
 2. [Data Model Documentation](#2-data-model-documentation)
 3. [API Surface Map](#3-api-surface-map)
 4. [Key Business Logic Inventory](#4-key-business-logic-inventory)
+5. [Integration Points](#5-integration-points)
+6. [Build and Deployment Pipeline](#6-build-and-deployment-pipeline)
 
 ---
 
@@ -755,3 +757,303 @@ All services are instrumented with:
 - **Feign Micrometer** integration for automatic tracing of Feign client calls.
 
 Trace context is propagated automatically across Feign calls, providing end-to-end visibility from gateway through to core banking operations.
+
+---
+
+## 5. Integration Points
+
+### 5.1 Keycloak (Identity Provider)
+
+| Aspect | Detail |
+|---|---|
+| **Version** | 23.0.7 |
+| **Container** | `keycloak_web` (port 8080) |
+| **Backend DB** | PostgreSQL 15 (`keycloak_postgre_db`, port 5432 internal only) |
+| **Admin Credentials** | `admin` / `password` |
+| **Realm Import** | Auto-imported on startup from `docker-compose/keycloak/` volume mount |
+| **Grant Type** | `client_credentials` (service-to-Keycloak communication) |
+
+#### Integration Touchpoints
+
+1. **API Gateway (OAuth2 Resource Server)**
+   - Validates JWT tokens using Keycloak's JWK Set URI (`spring.security.oauth2.resourceserver.jwt.jwk-set-uri`).
+   - Configuration sourced from Spring Cloud Config (externalized).
+   - Uses `spring-boot-starter-oauth2-resource-server` and `spring-boot-starter-security`.
+
+2. **User Service (Keycloak Admin Client)**
+   - Library: `keycloak-admin-client:24.0.4`
+   - Connects via `KeycloakProperties` using externalized config (`app.config.keycloak.*`):
+     - `server-url`: Keycloak base URL
+     - `realm`: Target realm name
+     - `clientId`: Service client ID
+     - `client-secret`: Client secret for `client_credentials` grant
+   - Operations: Create user, update user (enable/verify email), search by email, read by auth ID.
+   - Singleton `Keycloak` instance (lazy-initialized, not thread-safe).
+
+3. **Client Authentication Flow**
+   - Clients obtain JWT tokens by authenticating against Keycloak's token endpoint.
+   - Test credentials: `ib_admin@javatodev.com` / `5V7huE3G86uB`
+
+### 5.2 RabbitMQ (Message Broker)
+
+| Aspect | Detail |
+|---|---|
+| **Status** | Referenced in architecture documentation but **not implemented in code** |
+| **Intended Use** | Notification service would consume messages from fund-transfer and utility-payment services |
+| **Current State** | No RabbitMQ dependencies in any `build.gradle`, no AMQP configuration, no message producers or consumers |
+| **Docker** | No RabbitMQ container in `docker-compose.yml` |
+
+RabbitMQ is part of the planned architecture (mentioned in README for notification service) but has not been implemented. The notification service itself is marked as "PENDING Development."
+
+### 5.3 Zipkin (Distributed Tracing)
+
+| Aspect | Detail |
+|---|---|
+| **Version** | Zipkin 3 (Docker image: `openzipkin/zipkin:3`) |
+| **Container** | `openzipkin_server` (port 9411) |
+| **Dashboard** | `http://localhost:9411` |
+
+#### Integration Touchpoints
+
+All 6 microservices (except config server and service registry) include tracing dependencies:
+
+| Dependency | Purpose |
+|---|---|
+| `io.micrometer:micrometer-tracing-bridge-brave` | Bridges Micrometer Tracing API to Brave tracer |
+| `io.zipkin.reporter2:zipkin-reporter-brave` | Exports Brave spans to Zipkin over HTTP |
+| `io.github.openfeign:feign-micrometer` | Instruments OpenFeign calls with trace context propagation |
+
+- Trace/span IDs are automatically propagated across Feign client calls.
+- Zipkin URL is configured via externalized configuration (Spring Cloud Config).
+- The API gateway uses WebFlux tracing (reactive stack).
+
+### 5.4 MySQL (Application Database)
+
+| Aspect | Detail |
+|---|---|
+| **Container** | `mysql_javatodev_app` (port 3306) |
+| **Root Password** | `woVERANKliGharym` |
+| **App User** | `javatodev_development` / `oPItyPticIAt` |
+| **Custom Image** | Built from `docker-compose/mysql/` (includes `privileges.sql` for DB/user creation) |
+
+#### Database Connections
+
+| Service | Database | Driver | ORM |
+|---|---|---|---|
+| core-banking-service | `banking_core_service` | `com.mysql:mysql-connector-j:8.4.0` | Spring Data JPA + Hibernate |
+| internet-banking-user-service | `banking_core_user_service` | `com.mysql:mysql-connector-j:8.4.0` | Spring Data JPA + Hibernate |
+| internet-banking-fund-transfer-service | `banking_core_fund_transfer_service` | `com.mysql:mysql-connector-j:8.4.0` | Spring Data JPA + Hibernate |
+| internet-banking-utility-payment-service | `banking_core_utility_payment_service` | `com.mysql:mysql-connector-j:8.4.0` | Spring Data JPA + Hibernate |
+
+- JDBC URLs, credentials, and JPA settings are externalized via Spring Cloud Config.
+- Only `core-banking-service` uses Flyway for schema migrations. Other services rely on `hibernate.ddl-auto` (configured externally).
+- Test profiles use H2 in-memory database (`com.h2database:h2:2.2.224`).
+
+### 5.5 Netflix Eureka (Service Discovery)
+
+| Aspect | Detail |
+|---|---|
+| **Server** | `internet-banking-service-registry` (port 8081) |
+| **Dashboard** | `http://localhost:8081` |
+
+#### Registered Services
+
+All business services and the API gateway register as Eureka clients:
+- `core-banking-service`
+- `internet-banking-user-service`
+- `internet-banking-fund-transfer-service`
+- `internet-banking-utility-payment-service`
+- `internet-banking-api-gateway`
+
+Eureka client configuration (service URL, prefer-ip-address, etc.) is sourced from Spring Cloud Config. The service registry itself does **not** register with itself (`register-with-eureka: false`, `fetch-registry: false`).
+
+### 5.6 Spring Cloud Config Server (Centralized Configuration)
+
+| Aspect | Detail |
+|---|---|
+| **Service** | `internet-banking-config-server` (port 8090) |
+| **Backend** | Git repository |
+| **Git URI** | `https://github.com/JavatoDev-com/internet-banking-microservices-configurations.git` |
+| **Search Path** | `configuration` |
+| **Branch** | `main` |
+
+#### Configuration Consumers
+
+Every service (except the config server itself) connects to the config server at startup via `bootstrap.yml`:
+
+```yaml
+spring:
+  cloud:
+    config:
+      uri: http://localhost:8090   # overridden per profile (docker, dev)
+```
+
+Configuration includes: database connection strings, Eureka client settings, Keycloak properties, Zipkin URLs, server ports, logging levels, and API gateway route definitions.
+
+### 5.7 Integration Dependency Matrix
+
+| Service | Keycloak | MySQL | Eureka | Config Server | Zipkin | Feign (to core-banking) |
+|---|---|---|---|---|---|---|
+| core-banking-service | - | Yes | Client | Yes | Yes | - |
+| internet-banking-user-service | Admin Client | Yes | Client | Yes | Yes | Yes |
+| internet-banking-fund-transfer-service | - | Yes | Client | Yes | Yes | Yes |
+| internet-banking-utility-payment-service | - | Yes | Client | Yes | Yes | Yes |
+| internet-banking-api-gateway | JWT Validation | - | Client | Yes | Yes | - |
+| internet-banking-service-registry | - | - | Server | - | - | - |
+| internet-banking-config-server | - | - | - | Self | - | - |
+
+---
+
+## 6. Build and Deployment Pipeline
+
+### 6.1 Build System
+
+| Aspect | Detail |
+|---|---|
+| **Build Tool** | Gradle (per-service, no multi-project root build file) |
+| **Gradle Wrapper** | Each service includes `gradlew` / `gradlew.bat` |
+| **Spring Boot Plugin** | `org.springframework.boot` 3.2.4 |
+| **Dependency Management Plugin** | `io.spring.dependency-management` 1.1.4 |
+| **Java Compatibility** | sourceCompatibility = 21 |
+| **Artifact Format** | Executable JAR (Spring Boot fat JAR) |
+| **Test Framework** | JUnit 5 (Jupiter) via `useJUnitPlatform()` |
+
+#### Build Command (per service)
+
+```bash
+cd <service-directory>
+./gradlew clean build
+```
+
+The build output JAR lands in `build/libs/<service-name>-0.0.1-SNAPSHOT.jar`.
+
+#### Notable Plugins
+
+| Plugin | Services | Purpose |
+|---|---|---|
+| `com.gorylenko.gradle-git-properties` 2.4.2 | All except service-registry | Generates `git.properties` for Actuator `/info` endpoint |
+
+### 6.2 Containerization
+
+#### Dockerfile Pattern
+
+All services follow an identical Dockerfile pattern:
+
+```dockerfile
+FROM eclipse-temurin:21.0.2_13-jre-alpine
+LABEL maintainer="chinthaka@javatodev.com"
+VOLUME /main-app
+ADD build/libs/<service-name>-0.0.1-SNAPSHOT.jar app.jar
+EXPOSE <port>
+COPY wait-for-it.sh wait-for-it.sh
+RUN chmod +x wait-for-it.sh
+RUN apk add --no-cache bash
+ENTRYPOINT ["java", "-jar", "-Dspring.profiles.active=docker", "/app.jar"]
+```
+
+**Key characteristics:**
+- **Base image:** Eclipse Temurin 21 JRE on Alpine Linux (minimal footprint).
+- **Pre-built JAR:** Dockerfile expects the JAR to already be built (`build/libs/`). It is NOT a multi-stage build.
+- **Profile activation:** Docker containers run with `-Dspring.profiles.active=docker`, which triggers `bootstrap-docker.yml` for Docker-specific config server URIs.
+- **Startup dependency:** `wait-for-it.sh` is included for orchestrating startup order.
+
+#### Container Images
+
+| Service | Image Name | Port |
+|---|---|---|
+| core-banking-service | `javatodev/core-banking-service` | 8092 |
+| internet-banking-user-service | `javatodev/internet-banking-user-service` | 8083 |
+| internet-banking-fund-transfer-service | `javatodev/internet-banking-fund-transfer-service` | 8084 |
+| internet-banking-utility-payment-service | `javatodev/internet-banking-utility-payment-service` | 8085 |
+| internet-banking-api-gateway | `javatodev/internet-banking-api-gateway` | 8082 |
+| internet-banking-service-registry | `javatodev/internet-banking-service-registry` | 8081 |
+| internet-banking-config-server | `javatodev/internet-banking-config-server` | 8090 |
+
+### 6.3 Docker Compose Orchestration
+
+Two compose files are provided in `docker-compose/`:
+
+| File | Purpose |
+|---|---|
+| `docker-compose.yml` | Full stack: all 6 microservices + MySQL + Keycloak + PostgreSQL + Zipkin |
+| `docker-compose-support-apps.yml` | Infrastructure only: MySQL + Keycloak + PostgreSQL + Zipkin + Config Server + Service Registry |
+
+#### Startup Order
+
+The `docker-compose.yml` uses `wait-for-it.sh` in entrypoints to enforce dependency ordering:
+
+```
+1. MySQL, Keycloak DB, Zipkin (no dependencies)
+2. Keycloak (depends_on: keycloakdb)
+3. Config Server (no wait-for-it, starts independently)
+4. Service Registry (no wait-for-it, starts independently)
+5. API Gateway (waits for: service-registry:8081, config-server:8090)
+6. Business services (waits for: service-registry:8081, config-server:8090, mysql:3306)
+```
+
+#### Deployment Commands
+
+```bash
+# Start full stack
+cd docker-compose
+docker-compose up -d
+
+# Start infrastructure only (for local development)
+docker-compose -f docker-compose-support-apps.yml up -d
+
+# Rebuild a specific service
+cd <service-directory>
+./gradlew clean build
+docker build -t javatodev/<service-name> .
+
+# View logs
+docker-compose logs -f <service-name>
+```
+
+### 6.4 Database Migration Pipeline
+
+| Aspect | Detail |
+|---|---|
+| **Tool** | Flyway 10.12.0 (core-banking-service only) |
+| **Migration Location** | `core-banking-service/src/main/resources/db/migration/` |
+| **Naming Convention** | `V{version}_{timestamp}__{description}.sql` |
+
+#### Migration Files
+
+| File | Description |
+|---|---|
+| `V1.0.20210427174638__create_base_table_structure.sql` | Creates `banking_core_user`, `banking_core_account`, `banking_core_utility_account` tables |
+| `V1.0.20210427174721__temp_data.sql` | Inserts seed data (4 users, 14 accounts, 6 utility providers) |
+| `V1.0.20210429210839__create_transaction_table.sql` | Creates `banking_core_transaction` table |
+
+**Note:** The other three services (user, fund-transfer, utility-payment) do **not** use Flyway. Their schemas are likely managed by Hibernate's `ddl-auto` setting (configured externally via Spring Cloud Config), which is not recommended for production.
+
+### 6.5 Testing Infrastructure
+
+| Aspect | Detail |
+|---|---|
+| **Test Framework** | JUnit 5 (Jupiter) |
+| **Mocking** | Mockito |
+| **Test DB** | H2 in-memory (for core-banking-service tests) |
+
+#### Test Coverage by Service
+
+| Service | Test Classes | Test Methods | Scope |
+|---|---|---|---|
+| core-banking-service | `AccountServiceTest`, `TransactionServiceTest`, `UserServiceTest` | ~16 | Unit tests for service layer with mocked repositories |
+| internet-banking-user-service | `InternetBankingUserServiceApplicationTests` | 1 | Spring context load test only |
+| internet-banking-fund-transfer-service | `InternetBankingFundTransferServiceApplicationTests` | 1 | Spring context load test only |
+| internet-banking-utility-payment-service | `InternetBankingUtilityPaymentServiceApplicationTests` | 1 | Spring context load test only |
+| internet-banking-api-gateway | `InternetBankingApiGatewayApplicationTests` | 1 | Spring context load test only |
+| internet-banking-config-server | `InternetBankingConfigServerApplicationTests` | 1 | Spring context load test only |
+| internet-banking-service-registry | `InternetBankingServiceRegistryApplicationTests` | 1 | Spring context load test only |
+
+### 6.6 API Testing
+
+- **Postman Collection:** Available in `postman_collection/JAVA_TO_DEV_MICROSERVICES.postman_collection.json` with environment file `BANKING_CORE_MICROSERVICES_PROJECT.postman_environment.json`.
+- **HTTP Test File:** `internet-banking-api-gateway/api_test.http` with basic actuator endpoint checks.
+- **Environment:** Switch to `LOCAL_DOCKER_SETUP` environment in Postman for local testing.
+
+### 6.7 CI/CD Pipeline
+
+**Current state:** No CI/CD pipeline is configured. There are no GitHub Actions workflows, Jenkinsfiles, or other CI configuration files in the repository. Builds and deployments are entirely manual.
