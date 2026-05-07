@@ -1,0 +1,24 @@
+server:
+  port: 8082
+  servlet:
+    context-path: /petclinic/api
+
+spring:
+  application:
+    name: vet-service
+  profiles:
+    active: dev
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
