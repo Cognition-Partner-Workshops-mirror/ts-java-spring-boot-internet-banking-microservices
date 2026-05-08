@@ -1,0 +1,2 @@
+/* Root project name for the Oracle Database Service module */
+rootProject.name = 'oracle-db-service'

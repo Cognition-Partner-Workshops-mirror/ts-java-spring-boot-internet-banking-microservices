@@ -1,0 +1,20 @@
+# Gradle build output
+build/
+bin/
+out/
+
+# Gradle wrapper cache
+.gradle/
+
+# IDE files
+.project
+.classpath
+.settings/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,60 @@
+/* Build configuration for Spring Boot Oracle Database Service.
+ * Uses Spring Boot 3.2.4, Spring Data JPA, and Oracle JDBC driver
+ * for Oracle Database connectivity.
+ */
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.4'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+group = 'com.banking.oracle'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    /* Java 21 compatibility to match the rest of the microservices */
+    sourceCompatibility = '21'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    /* Spring Boot Web starter for REST API support */
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    /* Spring Data JPA for ORM and repository abstractions */
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    /* Spring Boot Actuator for health checks and monitoring endpoints */
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    /* Spring Boot Validation for request payload validation */
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    /* Oracle JDBC driver for Oracle Database connectivity */
+    implementation 'com.oracle.database.jdbc:ojdbc11:23.3.0.23.09'
+
+    /* Oracle UCP (Universal Connection Pool) for connection pooling with Oracle-specific optimizations */
+    implementation 'com.oracle.database.jdbc:ucp11:23.3.0.23.09'
+
+    /* HikariCP is included by default with spring-boot-starter-data-jpa as the default connection pool */
+
+    /* Lombok for reducing boilerplate code (getters, setters, constructors) */
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    /* Swagger/OpenAPI documentation for REST endpoints */
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
+
+    /* Test dependencies */
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+    /* H2 in-memory database for unit and integration testing */
+    testImplementation 'com.h2database:h2:2.2.224'
+}
+
+test {
+    useJUnitPlatform()
+}
