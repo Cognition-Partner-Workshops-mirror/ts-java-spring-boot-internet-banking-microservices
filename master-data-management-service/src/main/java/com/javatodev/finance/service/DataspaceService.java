@@ -3,6 +3,7 @@ package com.javatodev.finance.service;
 import com.javatodev.finance.exception.EntityNotFoundException;
 import com.javatodev.finance.model.dto.request.DataspaceRequest;
 import com.javatodev.finance.model.dto.response.DataspaceResponse;
+import com.javatodev.finance.model.entity.ColumnDefinitionEntity;
 import com.javatodev.finance.model.entity.DataspaceEntity;
 import com.javatodev.finance.model.entity.DatasetEntity;
 import com.javatodev.finance.model.entity.MasterDataRecordEntity;
@@ -18,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -123,7 +125,19 @@ public class DataspaceService {
                 parentTable.setName(childTable.getName());
                 parentTable.setDescription(childTable.getDescription());
                 parentTable.setDataset(parentDataset);
-                parentTable.setColumns(childTable.getColumns());
+                // Deep copy columns — must create new entities pointing to parentTable
+                List<ColumnDefinitionEntity> parentColumns = new ArrayList<>();
+                for (ColumnDefinitionEntity childCol : childTable.getColumns()) {
+                    ColumnDefinitionEntity parentCol = new ColumnDefinitionEntity();
+                    parentCol.setName(childCol.getName());
+                    parentCol.setDataType(childCol.getDataType());
+                    parentCol.setRequired(childCol.isRequired());
+                    parentCol.setUniqueKey(childCol.isUniqueKey());
+                    parentCol.setOrdinal(childCol.getOrdinal());
+                    parentCol.setTableDefinition(parentTable);
+                    parentColumns.add(parentCol);
+                }
+                parentTable.setColumns(parentColumns);
                 parentTable = tableDefinitionRepository.save(parentTable);
 
                 // Copy approved records

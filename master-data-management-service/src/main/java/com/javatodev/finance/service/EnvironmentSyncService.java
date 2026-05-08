@@ -18,10 +18,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.Statement;
+import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,6 +44,9 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Service
 public class EnvironmentSyncService {
+
+    /** Only allow valid SQL identifiers to prevent SQL injection via table names. */
+    private static final Pattern VALID_SQL_IDENTIFIER = Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*$");
 
     private final EnvironmentConfigRepository environmentConfigRepository;
     private final SnapshotDataRepository snapshotDataRepository;
@@ -119,9 +124,11 @@ public class EnvironmentSyncService {
      */
     private List<Map<String, Object>> readTargetTableData(EnvironmentConfigEntity envConfig, String tableName) {
         List<Map<String, Object>> records = new ArrayList<>();
+        validateTableName(tableName);
+        String quotedTable = "`" + tableName + "`";
         try (Connection conn = DriverManager.getConnection(envConfig.getDbUrl(), envConfig.getDbUsername(), envConfig.getDbPassword());
              Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT * FROM " + tableName)) {
+             ResultSet rs = stmt.executeQuery("SELECT * FROM " + quotedTable)) {
 
             ResultSetMetaData meta = rs.getMetaData();
             int colCount = meta.getColumnCount();
@@ -204,6 +211,8 @@ public class EnvironmentSyncService {
     /** Generate SQL INSERT/UPDATE/DELETE statements for a table diff. */
     private void generateTableSyncScript(StringBuilder sb, String tableName,
             EnvironmentCompareResponse.TableSyncDiff diff) {
+        validateTableName(tableName);
+        String quotedTable = "`" + tableName + "`";
         sb.append("-- Table: ").append(tableName).append("\n");
 
         // INSERT statements
@@ -212,7 +221,7 @@ public class EnvironmentSyncService {
             columns.remove("_record_id");
             if (columns.isEmpty()) continue;
 
-            sb.append("INSERT INTO ").append(tableName).append(" (");
+            sb.append("INSERT INTO ").append(quotedTable).append(" (");
             sb.append(String.join(", ", columns));
             sb.append(") VALUES (");
             sb.append(columns.stream()
@@ -228,7 +237,7 @@ public class EnvironmentSyncService {
             columns.remove("_record_id");
             if (columns.isEmpty()) continue;
 
-            sb.append("UPDATE ").append(tableName).append(" SET ");
+            sb.append("UPDATE ").append(quotedTable).append(" SET ");
             sb.append(columns.stream()
                 .map(col -> col + " = " + formatSqlValue(record.get(col)))
                 .collect(Collectors.joining(", ")));
@@ -238,7 +247,7 @@ public class EnvironmentSyncService {
         // DELETE statements
         for (Map<String, Object> record : diff.getDeletes()) {
             Object recordId = record.get("_record_id");
-            sb.append("DELETE FROM ").append(tableName);
+            sb.append("DELETE FROM ").append(quotedTable);
             sb.append(" WHERE _record_id = ").append(formatSqlValue(recordId)).append(";\n");
         }
 
@@ -250,6 +259,13 @@ public class EnvironmentSyncService {
         if (value == null) return "NULL";
         if (value instanceof Number) return value.toString();
         return "'" + value.toString().replace("'", "''") + "'";
+    }
+
+    /** Validate that a table name is a safe SQL identifier to prevent injection. */
+    private void validateTableName(String tableName) {
+        if (tableName == null || !VALID_SQL_IDENTIFIER.matcher(tableName).matches()) {
+            throw new IllegalArgumentException("Invalid table name: " + tableName);
+        }
     }
 
     /** Parse a JSON array string into a list of maps. */

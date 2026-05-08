@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,9 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 public class TableDefinitionService {
 
+    /** Only allow valid SQL identifiers as table names to prevent injection. */
+    private static final Pattern VALID_SQL_IDENTIFIER = Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*$");
+
     private final TableDefinitionRepository tableDefinitionRepository;
     private final DatasetRepository datasetRepository;
 
@@ -37,6 +41,11 @@ public class TableDefinitionService {
     @Transactional
     public TableDefinitionResponse createTableDefinition(TableDefinitionRequest request) {
         log.info("Creating table: {} in dataset: {}", request.getName(), request.getDatasetId());
+
+        // Validate table name is a safe SQL identifier
+        if (request.getName() == null || !VALID_SQL_IDENTIFIER.matcher(request.getName()).matches()) {
+            throw new IllegalArgumentException("Table name must be a valid SQL identifier (letters, digits, underscores): " + request.getName());
+        }
 
         DatasetEntity dataset = datasetRepository.findById(request.getDatasetId())
             .orElseThrow(() -> new EntityNotFoundException("Dataset not found with id: " + request.getDatasetId()));
