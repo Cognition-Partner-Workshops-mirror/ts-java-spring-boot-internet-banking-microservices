@@ -28,6 +28,8 @@ public class UtilityPaymentService {
 
     private UtilityPaymentMapper utilityPaymentMapper = new UtilityPaymentMapper();
 
+    // Orchestrates utility payment: persists the request, delegates to core-banking,
+    // and updates the status to SUCCESS or FAILED based on the outcome.
     public UtilityPaymentResponse utilPayment(UtilityPaymentRequest paymentRequest) {
         log.info("Utility payment processing {}", paymentRequest.toString());
 
@@ -36,14 +38,22 @@ public class UtilityPaymentService {
         entity.setStatus(TransactionStatus.PROCESSING);
         UtilityPaymentEntity optUtilPayment = utilityPaymentRepository.save(entity);
 
-        UtilityPaymentResponse utilityPaymentResponse = bankingCoreRestClient.utilityPayment(paymentRequest);
-        log.info("Transaction response {}", utilityPaymentResponse.toString());
+        try {
+            UtilityPaymentResponse utilityPaymentResponse = bankingCoreRestClient.utilityPayment(paymentRequest);
+            log.info("Transaction response {}", utilityPaymentResponse.toString());
 
-        optUtilPayment.setStatus(TransactionStatus.SUCCESS);
-        optUtilPayment.setTransactionId(utilityPaymentResponse.getTransactionId());
-        utilityPaymentRepository.save(optUtilPayment);
+            optUtilPayment.setStatus(TransactionStatus.SUCCESS);
+            optUtilPayment.setTransactionId(utilityPaymentResponse.getTransactionId());
+            utilityPaymentRepository.save(optUtilPayment);
 
-        return UtilityPaymentResponse.builder().message("Utility Payment Successfully Processed").transactionId(utilityPaymentResponse.getTransactionId()).build();
+            return UtilityPaymentResponse.builder().message("Utility Payment Successfully Processed").transactionId(utilityPaymentResponse.getTransactionId()).build();
+        } catch (Exception e) {
+            // Mark the payment as FAILED so it does not remain PROCESSING indefinitely
+            log.error("Utility payment failed for request {}: {}", paymentRequest.toString(), e.getMessage());
+            optUtilPayment.setStatus(TransactionStatus.FAILED);
+            utilityPaymentRepository.save(optUtilPayment);
+            throw e;
+        }
     }
 
     public List<UtilityPayment> readPayments(Pageable pageable) {

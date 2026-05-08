@@ -28,6 +28,8 @@ public class FundTransferService {
 
     private FundTransferMapper mapper = new FundTransferMapper();
 
+    // Orchestrates fund transfer: persists the request, delegates to core-banking,
+    // and updates the status to SUCCESS or FAILED based on the outcome.
     public FundTransferResponse fundTransfer(FundTransferRequest request) {
         log.info("Sending fund transfer request {}" + request.toString());
 
@@ -36,13 +38,21 @@ public class FundTransferService {
         entity.setStatus(TransactionStatus.PENDING);
         FundTransferEntity optFundTransfer = fundTransferRepository.save(entity);
 
-        FundTransferResponse fundTransferResponse = bankingCoreFeignClient.fundTransfer(request);
-        optFundTransfer.setTransactionReference(fundTransferResponse.getTransactionId());
-        optFundTransfer.setStatus(TransactionStatus.SUCCESS);
-        fundTransferRepository.save(optFundTransfer);
+        try {
+            FundTransferResponse fundTransferResponse = bankingCoreFeignClient.fundTransfer(request);
+            optFundTransfer.setTransactionReference(fundTransferResponse.getTransactionId());
+            optFundTransfer.setStatus(TransactionStatus.SUCCESS);
+            fundTransferRepository.save(optFundTransfer);
 
-        fundTransferResponse.setMessage("Fund Transfer Successfully Completed");
-        return fundTransferResponse;
+            fundTransferResponse.setMessage("Fund Transfer Successfully Completed");
+            return fundTransferResponse;
+        } catch (Exception e) {
+            // Mark the transfer as FAILED so it does not remain PENDING indefinitely
+            log.error("Fund transfer failed for request {}: {}", request.toString(), e.getMessage());
+            optFundTransfer.setStatus(TransactionStatus.FAILED);
+            fundTransferRepository.save(optFundTransfer);
+            throw e;
+        }
 
     }
 
