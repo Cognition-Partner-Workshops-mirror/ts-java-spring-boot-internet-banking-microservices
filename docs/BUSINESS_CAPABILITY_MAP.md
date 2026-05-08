@@ -174,6 +174,118 @@ The gateway extracts the principal name from the JWT and forwards it as an `X-Au
 | 9 | **Multi-channel Support**     | No mobile-specific API adaptations, no channel identification                  | Low      |
 | 10| **Rate Limiting / Throttling**| No API rate limiting beyond what the gateway may provide                       | Medium   |
 
+### 4.3 Missing Business Capabilities — Detailed Mapping
+
+Each missing capability is mapped to the existing services that would own or consume it, along with proposed API surface and data model.
+
+#### 4.3.1 Notification Service
+
+| Aspect                 | Details                                                                                       |
+|------------------------|-----------------------------------------------------------------------------------------------|
+| **Owning Service**     | New: `internet-banking-notification-service`                                                  |
+| **Consuming Services** | `fund-transfer-service` (transfer confirmations), `utility-payment-service` (payment receipts), `user-service` (registration/approval emails) |
+| **Trigger Mechanism**  | Event-driven: listens to `PaymentCompleted`, `PaymentFailed`, `UserRegistered`, `UserApproved` events from RabbitMQ |
+| **Proposed Endpoints** | `POST /api/v1/notifications/send` (internal), `GET /api/v1/notifications/{userId}` (user history), `PATCH /api/v1/notifications/{id}/read` |
+| **Data Model**         | `notification` table: id, userId, channel (EMAIL/SMS/PUSH), templateId, payload (JSON), status (PENDING/SENT/FAILED), sentAt, createdDate |
+| **Channels**           | Email (SMTP/AWS SES), SMS (AWS SNS/Twilio), Push (FCM/APNs)                                  |
+| **Templates Needed**   | Fund transfer confirmation, utility payment receipt, registration welcome, account approval, failed transaction alert, low balance warning |
+| **Current Gap in Code**| `UserService.createUser()` sets `emailVerified=false` but never triggers an actual verification email. Keycloak can send emails but is not configured to do so. |
+
+#### 4.3.2 Audit Trail Service
+
+| Aspect                 | Details                                                                                       |
+|------------------------|-----------------------------------------------------------------------------------------------|
+| **Owning Service**     | New: `internet-banking-audit-service`                                                         |
+| **Consuming Services** | All 4 business services generate auditable events                                              |
+| **Trigger Mechanism**  | Event-driven: subscribes to all domain events; also consumes HTTP access logs from the gateway  |
+| **Proposed Endpoints** | `GET /api/v1/audit/events?userId=&type=&from=&to=` (admin query), `GET /api/v1/audit/events/{entityId}` (entity history) |
+| **Data Model**         | `audit_event` table: id, eventType, entityType, entityId, userId, action (CREATE/UPDATE/DELETE), previousState (JSON), newState (JSON), ipAddress, userAgent, timestamp |
+| **Regulatory Mapping** | PCI-DSS Req 10 (track access to cardholder data), SOX Section 302/404 (financial controls), GDPR Art 30 (records of processing) |
+| **Current Gap in Code**| `AuditAware` tracks `createdBy`/`modifiedBy` fields but these are always null — no `AuditorAware<String>` bean is registered to supply the current user. The `X-Auth-Id` header value is captured by `AppAuthUserFilter` but never wired into the JPA auditing framework. |
+
+#### 4.3.3 Reporting & Analytics
+
+| Aspect                 | Details                                                                                       |
+|------------------------|-----------------------------------------------------------------------------------------------|
+| **Owning Service**     | New: `internet-banking-reporting-service`                                                     |
+| **Consuming Services** | Reads from `core-banking-service` (transaction ledger, account balances), `fund-transfer-service`, `utility-payment-service` |
+| **Proposed Endpoints** | `GET /api/v1/reports/account-statement/{accountNumber}?from=&to=` (statement), `GET /api/v1/reports/transaction-summary?period=` (admin dashboard), `GET /api/v1/reports/export?format=PDF|CSV` |
+| **Data Model**         | Read-only views or materialized tables; no separate write model needed. May use CQRS with a read-replica database. |
+| **Reports Needed**     | Account statement (date range), transaction summary (by type, status, period), user activity report, failed transaction report, daily/monthly volume report |
+| **Current Gap in Code**| The `GET /api/v1/transfer` and `GET /api/v1/utility-payment` endpoints return raw paginated entity lists with no filtering, date range, or aggregation. No statement generation. No export format support. |
+
+#### 4.3.4 Dispute Management
+
+| Aspect                 | Details                                                                                       |
+|------------------------|-----------------------------------------------------------------------------------------------|
+| **Owning Service**     | New: `internet-banking-dispute-service`                                                       |
+| **Consuming Services** | `fund-transfer-service` (transaction reference lookup), `utility-payment-service` (payment reference lookup), `notification-service` (status updates to customer) |
+| **Proposed Endpoints** | `POST /api/v1/disputes` (raise dispute), `GET /api/v1/disputes/{id}` (status check), `PATCH /api/v1/disputes/{id}` (admin resolution), `GET /api/v1/disputes?userId=&status=` (list) |
+| **Data Model**         | `dispute` table: id, transactionReference, disputeType (UNAUTHORIZED/INCORRECT_AMOUNT/NOT_RECEIVED/DUPLICATE), description, status (OPEN/INVESTIGATING/RESOLVED/REJECTED), resolution, userId, assignedTo, createdDate, resolvedDate |
+| **Workflow**           | Customer raises dispute -> auto-link to transaction -> assign to agent -> investigate -> resolve/reject -> notify customer |
+| **Current Gap in Code**| No dispute endpoint, no dispute entity, no mechanism to reverse or hold funds pending investigation. The `TransactionStatus` enum has no DISPUTED or REVERSED value. |
+
+#### 4.3.5 Scheduled Payments
+
+| Aspect                 | Details                                                                                       |
+|------------------------|-----------------------------------------------------------------------------------------------|
+| **Owning Service**     | Extend: `internet-banking-payment-service` (or current fund-transfer / utility-payment services) |
+| **Consuming Services** | `core-banking-service` (executes the payment when scheduled time arrives)                      |
+| **Proposed Endpoints** | `POST /api/v1/payments/scheduled` (create), `GET /api/v1/payments/scheduled` (list), `DELETE /api/v1/payments/scheduled/{id}` (cancel), `PATCH /api/v1/payments/scheduled/{id}` (modify) |
+| **Data Model**         | `scheduled_payment` table: id, paymentType (TRANSFER/UTILITY), payload (JSON), scheduledDate, recurrence (ONCE/DAILY/WEEKLY/MONTHLY), status (ACTIVE/PAUSED/COMPLETED/CANCELLED), nextExecutionDate, lastExecutionDate, userId |
+| **Infrastructure**     | Requires a job scheduler (Spring Scheduler, Quartz, or a dedicated cron service) to poll for due payments and trigger execution |
+| **Current Gap in Code**| `FundTransferRequest` and `UtilityPaymentRequest` have no `scheduledDate` or `recurrence` field. All payments execute immediately on POST. No job scheduler configured. |
+
+#### 4.3.6 Beneficiary Management
+
+| Aspect                 | Details                                                                                       |
+|------------------------|-----------------------------------------------------------------------------------------------|
+| **Owning Service**     | Extend: `internet-banking-user-service` or new `internet-banking-beneficiary-service`          |
+| **Consuming Services** | `fund-transfer-service` (auto-populate destination account), `utility-payment-service` (auto-populate provider/reference) |
+| **Proposed Endpoints** | `POST /api/v1/beneficiaries` (add), `GET /api/v1/beneficiaries` (list by user), `DELETE /api/v1/beneficiaries/{id}` (remove), `PATCH /api/v1/beneficiaries/{id}` (update nickname) |
+| **Data Model**         | `beneficiary` table: id, userId, nickname, accountNumber, accountHolderName, bankName, beneficiaryType (INDIVIDUAL/UTILITY), providerId (nullable), isVerified, createdDate |
+| **Current Gap in Code**| Every fund transfer requires the user to type `fromAccount` and `toAccount` manually. No saved payee list. No quick-transfer capability. No account name verification against the destination bank. |
+
+#### 4.3.7 Fee & Charges Engine
+
+| Aspect                 | Details                                                                                       |
+|------------------------|-----------------------------------------------------------------------------------------------|
+| **Owning Service**     | Extend: `core-banking-service` (or new `fee-service` after decomposition)                      |
+| **Consuming Services** | `fund-transfer-service` (transfer fees), `utility-payment-service` (service charges)           |
+| **Proposed Endpoints** | `GET /api/v1/fees/calculate?type=&amount=&currency=` (fee quote), `GET /api/v1/fees/schedule` (admin: list fee rules) |
+| **Data Model**         | `fee_rule` table: id, transactionType, minAmount, maxAmount, feeType (FLAT/PERCENTAGE/TIERED), feeValue, currency, effectiveFrom, effectiveTo. `fee_transaction` table: id, originalTransactionId, feeAmount, feeType |
+| **Current Gap in Code**| `TransactionService.internalFundTransfer()` transfers the exact `amount` with no fee calculation. `utilPayment()` debits only the payment amount. No fee deduction anywhere. No fee disclosure to the user before confirming payment. |
+
+#### 4.3.8 Account Opening/Closing
+
+| Aspect                 | Details                                                                                       |
+|------------------------|-----------------------------------------------------------------------------------------------|
+| **Owning Service**     | Extend: `core-banking-service` (Account Management bounded context)                            |
+| **Consuming Services** | `user-service` (trigger account opening after user approval), `notification-service` (confirmation) |
+| **Proposed Endpoints** | `POST /api/v1/accounts` (open), `PATCH /api/v1/accounts/{id}/close` (close), `GET /api/v1/accounts?userId=` (list user accounts) |
+| **Data Model**         | Extend `banking_core_account`: add `openedDate`, `closedDate`, `closureReason`. New `account_application` table: id, userId, accountType, status (SUBMITTED/APPROVED/REJECTED), kycDocumentIds |
+| **Current Gap in Code**| `BankAccountEntity` exists but there is no REST endpoint to create or close an account. Accounts must be seeded via Flyway SQL scripts or direct DB inserts. The `AccountController` only has GET endpoints. |
+
+#### 4.3.9 Multi-channel Support
+
+| Aspect                 | Details                                                                                       |
+|------------------------|-----------------------------------------------------------------------------------------------|
+| **Owning Service**     | Extend: `internet-banking-api-gateway`                                                         |
+| **Impact**             | All downstream services                                                                        |
+| **Proposed Changes**   | Add `X-Channel` header (WEB/MOBILE/API) at gateway. Per-channel rate limits, response shaping (e.g., mobile gets lighter payloads), and channel-specific security rules (e.g., mobile requires device binding). |
+| **Data Model**         | `device` table: id, userId, deviceId, platform (iOS/Android/Web), pushToken, lastActiveDate. Add `channel` column to `audit_event` and transaction tables. |
+| **Current Gap in Code**| No channel identification anywhere. The gateway passes `X-Auth-Id` but no `X-Channel`. All clients receive identical responses regardless of channel. No device registration. |
+
+#### 4.3.10 Rate Limiting / Throttling
+
+| Aspect                 | Details                                                                                       |
+|------------------------|-----------------------------------------------------------------------------------------------|
+| **Owning Service**     | Extend: `internet-banking-api-gateway`                                                         |
+| **Impact**             | Protects all downstream services from abuse                                                    |
+| **Proposed Changes**   | Add Spring Cloud Gateway `RequestRateLimiter` filter backed by Redis. Configure per-user and per-endpoint limits. Add `429 Too Many Requests` response handling. |
+| **Configuration**      | Transfer endpoints: 10 req/min per user. Read endpoints: 60 req/min per user. Registration: 3 req/hour per IP. Admin endpoints: 30 req/min per user. |
+| **Current Gap in Code**| `SecurityConfiguration` permits all actuator endpoints and secures everything else via JWT, but has no rate limiting. Spring Cloud Gateway supports `RequestRateLimiter` natively but it is not configured. No Redis dependency present. |
+
 ### 4.2 Missing Technical Capabilities
 
 | # | Missing Capability              | Impact                                                                   | Priority |

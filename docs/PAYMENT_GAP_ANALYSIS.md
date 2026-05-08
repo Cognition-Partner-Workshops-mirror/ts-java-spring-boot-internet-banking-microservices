@@ -252,7 +252,7 @@ This is the interbank settlement message standard.
 | 4 | Double-deduction bug in balance calculation  | —                   | **Critical** | Customers lose double the intended amount on every transaction      |
 | 5 | No compensation/rollback on Feign failure    | —                   | **Critical** | Orphaned PENDING/PROCESSING records; money debited but not tracked |
 | 6 | No account ownership verification            | —                   | **Critical** | Any authenticated user can transfer from any account               |
-| 7 | FAILED status never assigned                 | pain.002 `TxSts`    | **Critical** | No visibility into failed transactions; no customer notification    |
+| 7 | ~~FAILED status never assigned~~  **(RESOLVED)** | pain.002 `TxSts`    | ~~Critical~~ **Resolved** | Fixed: both `FundTransferService` and `UtilityPaymentService` now catch exceptions and set `TransactionStatus.FAILED` before re-throwing |
 | 8 | No debtor/creditor party information         | pain.001 `Dbtr`/`Cdtr` | **High** | Cannot identify parties for AML/KYC compliance                     |
 | 9 | No remittance information                    | pain.001 `RmtInf`   | **High**    | No payment description; poor reconciliation                        |
 | 10| No account status validation                 | —                   | **High**    | Frozen/closed accounts can send or receive funds                   |
@@ -285,7 +285,7 @@ These gaps represent active financial risk or data integrity issues:
 4. **No compensation on failure** — Feign call failures leave transactions in limbo; money may be debited in core-banking but the orchestrating service never records success.
 5. **No account ownership check** — Any authenticated user can initiate transfers from any account, regardless of ownership.
 6. **No currency support** — The system cannot correctly operate in any jurisdiction requiring multi-currency or explicit currency identification.
-7. **FAILED status never used** — There is no mechanism to mark a transaction as failed, making error recovery and reporting impossible.
+7. ~~**FAILED status never used**~~ **(RESOLVED)** — Both `FundTransferService` and `UtilityPaymentService` now wrap the Feign call in a try/catch and assign `TransactionStatus.FAILED` on any exception, preventing orphaned PENDING/PROCESSING records.
 
 ### High Gaps (Short-term Priority)
 
