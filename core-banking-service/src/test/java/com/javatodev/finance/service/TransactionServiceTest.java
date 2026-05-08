@@ -64,6 +64,12 @@ class TransactionServiceTest {
         FundTransferResponse response = transactionService.fundTransfer(request);
         assertNotNull(response.getTransactionId());
         assertEquals("Transaction successfully completed", response.getMessage());
+
+        // Verify balances are correct after transfer (bug fix: availableBalance must match actualBalance)
+        assertEquals(BigDecimal.valueOf(100), fromEntity.getActualBalance(), "Sender actualBalance should be 200 - 100 = 100");
+        assertEquals(fromEntity.getActualBalance(), fromEntity.getAvailableBalance(), "Sender availableBalance must equal actualBalance after debit");
+        assertEquals(BigDecimal.valueOf(150), toEntity.getActualBalance(), "Receiver actualBalance should be 50 + 100 = 150");
+        assertEquals(toEntity.getActualBalance(), toEntity.getAvailableBalance(), "Receiver availableBalance must equal actualBalance after credit");
     }
 
     @Test
@@ -115,6 +121,10 @@ class TransactionServiceTest {
         UtilityPaymentResponse response = transactionService.utilPayment(request);
         assertNotNull(response.getTransactionId());
         assertEquals("Utility payment successfully completed", response.getMessage());
+
+        // Verify balances are correct after payment (bug fix: availableBalance must match actualBalance)
+        assertEquals(BigDecimal.valueOf(50), fromEntity.getActualBalance(), "Payer actualBalance should be 100 - 50 = 50");
+        assertEquals(fromEntity.getActualBalance(), fromEntity.getAvailableBalance(), "Payer availableBalance must equal actualBalance after debit");
     }
 
     @Test
@@ -162,6 +172,12 @@ class TransactionServiceTest {
         assertNotNull(transactionId);
         verify(bankAccountRepository, times(2)).save(any(BankAccountEntity.class));
         verify(transactionRepository, times(2)).save(any(TransactionEntity.class));
+
+        // Verify balances are correct (bug fix: availableBalance must match actualBalance, not double-subtract/add)
+        assertEquals(BigDecimal.valueOf(100), fromEntity.getActualBalance(), "Sender actualBalance should be 200 - 100 = 100");
+        assertEquals(fromEntity.getActualBalance(), fromEntity.getAvailableBalance(), "Sender availableBalance must equal actualBalance after debit");
+        assertEquals(BigDecimal.valueOf(150), toEntity.getActualBalance(), "Receiver actualBalance should be 50 + 100 = 150");
+        assertEquals(toEntity.getActualBalance(), toEntity.getAvailableBalance(), "Receiver availableBalance must equal actualBalance after credit");
     }
 
     @Test
@@ -176,11 +192,19 @@ class TransactionServiceTest {
 
     @Test
     void validateBalance_throwsException() {
+        // Pre-existing test fixed: FundTransferRequest has no all-args constructor, use setters
+        FundTransferRequest request = new FundTransferRequest();
+        request.setFromAccount("A1");
+        request.setToAccount("A2");
+        request.setAmount(BigDecimal.valueOf(100));
+
         BankAccount account = new BankAccount();
         account.setNumber("A1");
         account.setActualBalance(BigDecimal.valueOf(50));
+        when(accountService.readBankAccount("A1")).thenReturn(account);
+
         assertThrows(InsufficientFundsException.class, () -> {
-            transactionService.fundTransfer(new FundTransferRequest("A1", "A2", BigDecimal.valueOf(100)));
+            transactionService.fundTransfer(request);
         });
     }
 }
