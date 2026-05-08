@@ -126,6 +126,17 @@ services:
       javatodev_ib_network:
         ipv4_address: 172.25.0.2
 
+  # Master Data Management service — EBX MDM POC microservice
+  master-data-management-service:
+    image: javatodev/master-data-management-service
+    container_name: master-data-management-service
+    ports:
+      - 8093:8093
+    entrypoint: ["./wait-for-it.sh", "internet-banking-service-registry:8081", "--timeout=50", "--", "./wait-for-it.sh", "internet-banking-config-server:8090", "--timeout=50", "--", "./wait-for-it.sh", "mysql_core_db:3306", "--timeout=50", "--","java", "-jar", "-Dspring.profiles.active=docker", "/app.jar"]
+    networks:
+      javatodev_ib_network:
+        ipv4_address: 172.25.0.13
+
 volumes:
   postgres_data:
   mysqldata:
