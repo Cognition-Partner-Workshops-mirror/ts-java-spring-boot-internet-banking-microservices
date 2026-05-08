@@ -126,6 +126,25 @@ services:
       javatodev_ib_network:
         ipv4_address: 172.25.0.2
 
+  # Python/FastAPI AI Agent Service — hosts Client Health, RM Copilot, and Wallet Share agents
+  commercial-banking-ai-agent-service:
+    build:
+      context: ../commercial-banking-ai-agent-service
+      dockerfile: Dockerfile
+    container_name: commercial-banking-ai-agent-service
+    ports:
+      - 8093:8093
+    environment:
+      AI_AGENT_DATABASE_URL: mysql+pymysql://${DB_USER:-javatodev_development}:${DB_PASSWORD}@mysql_core_db:3306/banking_ai_agent_service
+      AI_AGENT_CORE_BANKING_BASE_URL: http://core-banking-service:8092
+      AI_AGENT_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    depends_on:
+      - mysql_core_db
+      - core-banking-service
+    networks:
+      javatodev_ib_network:
+        ipv4_address: 172.25.0.13
+
 volumes:
   postgres_data:
   mysqldata:
