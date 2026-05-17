@@ -87,9 +87,21 @@ public class TransactionService {
 
         String transactionId = UUID.randomUUID().toString();
 
-        // Use pessimistic locking to prevent concurrent balance modifications
-        BankAccountEntity fromBankAccountEntity = bankAccountRepository.findByNumberForUpdate(fromBankAccount.getNumber()).orElseThrow(EntityNotFoundException::new);
-        BankAccountEntity toBankAccountEntity = bankAccountRepository.findByNumberForUpdate(toBankAccount.getNumber()).orElseThrow(EntityNotFoundException::new);
+        // Acquire pessimistic locks in consistent lexicographic order to prevent deadlocks
+        // when concurrent opposite-direction transfers (A->B and B->A) run simultaneously
+        String fromNumber = fromBankAccount.getNumber();
+        String toNumber = toBankAccount.getNumber();
+        BankAccountEntity firstLocked, secondLocked;
+        if (fromNumber.compareTo(toNumber) <= 0) {
+            firstLocked = bankAccountRepository.findByNumberForUpdate(fromNumber).orElseThrow(EntityNotFoundException::new);
+            secondLocked = bankAccountRepository.findByNumberForUpdate(toNumber).orElseThrow(EntityNotFoundException::new);
+        } else {
+            secondLocked = bankAccountRepository.findByNumberForUpdate(toNumber).orElseThrow(EntityNotFoundException::new);
+            firstLocked = bankAccountRepository.findByNumberForUpdate(fromNumber).orElseThrow(EntityNotFoundException::new);
+        }
+        // Map back to from/to regardless of lock acquisition order
+        BankAccountEntity fromBankAccountEntity = firstLocked.getNumber().equals(fromNumber) ? firstLocked : secondLocked;
+        BankAccountEntity toBankAccountEntity = firstLocked.getNumber().equals(toNumber) ? firstLocked : secondLocked;
 
         // Fix: compute new balance once to avoid double-subtraction bug
         BigDecimal newFromBalance = fromBankAccountEntity.getActualBalance().subtract(amount);

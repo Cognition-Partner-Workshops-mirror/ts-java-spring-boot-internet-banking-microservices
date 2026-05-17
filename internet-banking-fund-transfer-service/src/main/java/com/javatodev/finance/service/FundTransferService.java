@@ -13,7 +13,6 @@ import com.javatodev.finance.service.rest.client.BankingCoreFeignClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -32,10 +31,12 @@ public class FundTransferService {
     private FundTransferMapper mapper = new FundTransferMapper();
 
     /**
-     * Processes a fund transfer with idempotency key support and failure rollback handling.
+     * Processes a fund transfer with idempotency key support and failure handling.
      * If a transfer with the same idempotency key already exists, returns the existing result.
+     * Note: No @Transactional here so that the PENDING record and FAILED status update
+     * are committed independently and survive even when the Feign call fails.
+     * The core-banking-service has its own @Transactional boundary for balance changes.
      */
-    @Transactional
     public FundTransferResponse fundTransfer(FundTransferRequest request, String idempotencyKey) {
         log.info("Processing fund transfer request");
 
@@ -68,8 +69,8 @@ public class FundTransferService {
             fundTransferResponse.setMessage("Fund Transfer Successfully Completed");
             return fundTransferResponse;
         } catch (Exception e) {
-            // Mark as FAILED on any error — core-banking @Transactional rolls back the DB changes
-            log.error("Fund transfer failed, rolling back", e);
+            // Mark as FAILED — this save commits independently since no wrapping @Transactional
+            log.error("Fund transfer failed", e);
             optFundTransfer.setStatus(TransactionStatus.FAILED);
             fundTransferRepository.save(optFundTransfer);
             throw new SimpleBankingGlobalException("Fund transfer failed. No balance was deducted.");

@@ -14,7 +14,6 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -32,10 +31,12 @@ public class UtilityPaymentService {
     private UtilityPaymentMapper utilityPaymentMapper = new UtilityPaymentMapper();
 
     /**
-     * Processes a utility payment with idempotency key support and failure rollback handling.
+     * Processes a utility payment with idempotency key support and failure handling.
      * If a payment with the same idempotency key already exists, returns the existing result.
+     * Note: No @Transactional here so that the PROCESSING record and FAILED status update
+     * are committed independently and survive even when the Feign call fails.
+     * The core-banking-service has its own @Transactional boundary for balance changes.
      */
-    @Transactional
     public UtilityPaymentResponse utilPayment(UtilityPaymentRequest paymentRequest, String idempotencyKey) {
         log.info("Processing utility payment request");
 
@@ -72,8 +73,8 @@ public class UtilityPaymentService {
                 .transactionId(utilityPaymentResponse.getTransactionId())
                 .build();
         } catch (Exception e) {
-            // Mark as FAILED on any error — core-banking @Transactional rolls back the DB changes
-            log.error("Utility payment failed, rolling back", e);
+            // Mark as FAILED — this save commits independently since no wrapping @Transactional
+            log.error("Utility payment failed", e);
             optUtilPayment.setStatus(TransactionStatus.FAILED);
             utilityPaymentRepository.save(optUtilPayment);
             throw new SimpleBankingGlobalException("Utility payment failed. No balance was deducted.");

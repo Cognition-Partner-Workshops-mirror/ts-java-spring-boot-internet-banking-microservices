@@ -6,9 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
-import java.security.Principal;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -31,36 +29,38 @@ public class GatewayConfiguration {
 
     @Bean
     public GlobalFilter customGlobalFilter() {
-        return (exchange, chain) -> exchange.getPrincipal().map(Principal::getName).defaultIfEmpty(UNAUTHORIZED_USER_NAME).map(principal -> {
-            // Extract roles from JWT token for RBAC forwarding to downstream services
-            String roles = extractRoles(exchange.getPrincipal().block());
-            // Add authentication and authorization headers to proxied request
-            exchange.getRequest().mutate()
-                .header(HTTP_HEADER_AUTH_USER_ID, principal)
-                .header("X-Internal-Api-Key", internalApiKey)
-                .header("X-Auth-Roles", roles)
-                .build();
-            return exchange;
-        }).flatMap(chain::filter).then(Mono.fromRunnable(() -> {
-
-        }));
+        // Fully reactive pipeline — no block() calls to avoid IllegalStateException on Netty threads
+        return (exchange, chain) -> exchange.getPrincipal()
+            .cast(JwtAuthenticationToken.class)
+            .map(jwtAuth -> {
+                String principalName = jwtAuth.getName();
+                // Extract roles directly from the already-resolved JWT token (no second block() call)
+                String roles = extractRolesFromToken(jwtAuth);
+                exchange.getRequest().mutate()
+                    .header(HTTP_HEADER_AUTH_USER_ID, principalName)
+                    .header("X-Internal-Api-Key", internalApiKey)
+                    .header("X-Auth-Roles", roles)
+                    .build();
+                return exchange;
+            })
+            .defaultIfEmpty(exchange)
+            .flatMap(chain::filter);
     }
 
     /**
-     * Extracts realm roles from a Keycloak JWT token principal.
+     * Extracts realm roles from a Keycloak JWT token.
+     * Accepts JwtAuthenticationToken directly to avoid needing a second block() call.
      * Returns comma-separated role names for forwarding to downstream services.
      */
     @SuppressWarnings("unchecked")
-    private String extractRoles(Principal principal) {
-        if (principal instanceof JwtAuthenticationToken jwtAuth) {
-            Map<String, Object> realmAccess = jwtAuth.getToken().getClaimAsMap("realm_access");
-            if (realmAccess != null) {
-                Object rolesObj = realmAccess.get("roles");
-                if (rolesObj instanceof Collection<?> roles) {
-                    return roles.stream()
-                        .map(Object::toString)
-                        .collect(Collectors.joining(","));
-                }
+    private String extractRolesFromToken(JwtAuthenticationToken jwtAuth) {
+        Map<String, Object> realmAccess = jwtAuth.getToken().getClaimAsMap("realm_access");
+        if (realmAccess != null) {
+            Object rolesObj = realmAccess.get("roles");
+            if (rolesObj instanceof Collection<?> roles) {
+                return roles.stream()
+                    .map(Object::toString)
+                    .collect(Collectors.joining(","));
             }
         }
         return "";
