@@ -7,6 +7,7 @@ import com.javatodev.finance.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,15 +28,17 @@ public class UserController {
 
     @Operation(summary = "Register User", description = "Create a new user in the banking system")
     @PostMapping(value = "/register")
-    public ResponseEntity<User> createUser(@RequestBody User request) {
-        log.info("Creating user with {}", request.toString());
+    public ResponseEntity<User> createUser(@Valid @RequestBody User request) {
+        // Sanitized log — avoid logging full request with password/PII
+        log.info("Creating user with email {}", request.getEmail());
         return ResponseEntity.ok(userService.createUser(request));
     }
 
     @Operation(summary = "Update User", description = "Update an existing user's information")
     @PatchMapping(value = "/update/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable("id") Long userId, @RequestBody UserUpdateRequest userUpdateRequest) {
-        log.info("Updating user with {}", userUpdateRequest.toString());
+    public ResponseEntity<User> updateUser(@PathVariable("id") Long userId, @Valid @RequestBody UserUpdateRequest userUpdateRequest) {
+        // Sanitized log — avoid logging full request object
+        log.info("Updating user {} with status {}", userId, userUpdateRequest.getStatus());
         return ResponseEntity.ok(userService.updateUser(userId, userUpdateRequest));
     }
 

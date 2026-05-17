@@ -31,6 +31,10 @@ public class BankAccountEntity {
 
     private BigDecimal actualBalance;
 
+    // Optimistic locking version field to detect concurrent modifications
+    @Version
+    private Long version;
+
     @ManyToOne
     @JoinColumn(name = "user_id")
     private UserEntity user;

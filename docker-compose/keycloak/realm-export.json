@@ -35,14 +35,14 @@
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": false,
   "editUsernameAllowed": false,
-  "bruteForceProtected": false,
+  "bruteForceProtected": true,
   "permanentLockout": false,
   "maxFailureWaitSeconds": 900,
   "minimumQuickLoginWaitSeconds": 60,
   "waitIncrementSeconds": 60,
   "quickLoginCheckMilliSeconds": 1000,
   "maxDeltaTimeSeconds": 43200,
-  "failureFactor": 30,
+  "failureFactor": 5,
   "roles": {
     "realm": [
       {
@@ -79,6 +79,24 @@
         "id": "1564f1a7-a99a-469e-9b2b-d99689c69c88",
         "name": "uma_authorization",
         "description": "${role_uma_authorization}",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "4f3cf5dd-5fed-40a3-90d4-b790bbf86d28",
+        "attributes": {}
+      },
+      {
+        "id": "a1b2c3d4-0001-4000-8000-000000000001",
+        "name": "ROLE_ADMIN",
+        "description": "Administrator role for banking operations",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "4f3cf5dd-5fed-40a3-90d4-b790bbf86d28",
+        "attributes": {}
+      },
+      {
+        "id": "a1b2c3d4-0002-4000-8000-000000000002",
+        "name": "ROLE_USER",
+        "description": "Regular banking user role",
         "composite": false,
         "clientRole": false,
         "containerId": "4f3cf5dd-5fed-40a3-90d4-b790bbf86d28",

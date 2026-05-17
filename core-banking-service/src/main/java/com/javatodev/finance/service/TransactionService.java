@@ -56,12 +56,15 @@ public class TransactionService {
 
         UtilityAccount utilityAccount = accountService.readUtilityAccount(utilityPaymentRequest.getProviderId());
 
-        BankAccountEntity fromAccount = bankAccountRepository.findByNumber(fromBankAccount.getNumber()).get();
+        // Use pessimistic locking to prevent concurrent balance modifications
+        BankAccountEntity fromAccount = bankAccountRepository.findByNumberForUpdate(fromBankAccount.getNumber()).get();
 
         //we can call third party API to process UTIL payment from payment provider from here.
 
-        fromAccount.setActualBalance(fromAccount.getActualBalance().subtract(utilityPaymentRequest.getAmount()));
-        fromAccount.setAvailableBalance(fromAccount.getActualBalance().subtract(utilityPaymentRequest.getAmount()));
+        // Fix: compute new balance once to avoid double-subtraction bug
+        BigDecimal newBalance = fromAccount.getActualBalance().subtract(utilityPaymentRequest.getAmount());
+        fromAccount.setActualBalance(newBalance);
+        fromAccount.setAvailableBalance(newBalance);
 
         transactionRepository.save(TransactionEntity.builder().transactionType(TransactionType.UTILITY_PAYMENT)
             .account(fromAccount)
@@ -84,11 +87,14 @@ public class TransactionService {
 
         String transactionId = UUID.randomUUID().toString();
 
-        BankAccountEntity fromBankAccountEntity = bankAccountRepository.findByNumber(fromBankAccount.getNumber()).orElseThrow(EntityNotFoundException::new);
-        BankAccountEntity toBankAccountEntity = bankAccountRepository.findByNumber(toBankAccount.getNumber()).orElseThrow(EntityNotFoundException::new);
+        // Use pessimistic locking to prevent concurrent balance modifications
+        BankAccountEntity fromBankAccountEntity = bankAccountRepository.findByNumberForUpdate(fromBankAccount.getNumber()).orElseThrow(EntityNotFoundException::new);
+        BankAccountEntity toBankAccountEntity = bankAccountRepository.findByNumberForUpdate(toBankAccount.getNumber()).orElseThrow(EntityNotFoundException::new);
 
-        fromBankAccountEntity.setActualBalance(fromBankAccountEntity.getActualBalance().subtract(amount));
-        fromBankAccountEntity.setAvailableBalance(fromBankAccountEntity.getActualBalance().subtract(amount));
+        // Fix: compute new balance once to avoid double-subtraction bug
+        BigDecimal newFromBalance = fromBankAccountEntity.getActualBalance().subtract(amount);
+        fromBankAccountEntity.setActualBalance(newFromBalance);
+        fromBankAccountEntity.setAvailableBalance(newFromBalance);
         bankAccountRepository.save(fromBankAccountEntity);
 
         transactionRepository.save(TransactionEntity.builder().transactionType(TransactionType.FUND_TRANSFER)
@@ -96,8 +102,10 @@ public class TransactionService {
             .transactionId(transactionId)
             .account(fromBankAccountEntity).amount(amount.negate()).build());
 
-        toBankAccountEntity.setActualBalance(toBankAccountEntity.getActualBalance().add(amount));
-        toBankAccountEntity.setAvailableBalance(toBankAccountEntity.getActualBalance().add(amount));
+        // Fix: compute new balance once to avoid double-addition bug
+        BigDecimal newToBalance = toBankAccountEntity.getActualBalance().add(amount);
+        toBankAccountEntity.setActualBalance(newToBalance);
+        toBankAccountEntity.setAvailableBalance(newToBalance);
         bankAccountRepository.save(toBankAccountEntity);
 
         transactionRepository.save(TransactionEntity.builder().transactionType(TransactionType.FUND_TRANSFER)

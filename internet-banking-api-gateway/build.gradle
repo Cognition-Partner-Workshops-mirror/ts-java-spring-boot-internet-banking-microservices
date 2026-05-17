@@ -45,6 +45,12 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
+    //JASYPT - Encrypted configuration properties
+    implementation 'com.github.ulisesbocchio:jasypt-spring-boot-starter:3.0.5'
+
+    //RATE LIMITING - In-memory token bucket rate limiter
+    implementation 'com.bucket4j:bucket4j-core:8.10.1'
+
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
