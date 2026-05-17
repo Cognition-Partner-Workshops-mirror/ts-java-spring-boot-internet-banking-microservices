@@ -22,19 +22,23 @@ public class KeycloakProperties {
     @Value("${app.config.keycloak.client-secret}")
     private String clientSecret;
 
-    private static Keycloak keycloakInstance = null;
+    // Thread-safe: volatile field + double-checked locking to prevent race conditions
+    private volatile Keycloak keycloakInstance = null;
 
     public Keycloak getInstance() {
-
         if (keycloakInstance == null) {
-            keycloakInstance = KeycloakBuilder
-                    .builder()
-                    .serverUrl(serverUrl)
-                    .realm(realm)
-                    .grantType("client_credentials")
-                    .clientId(clientId)
-                    .clientSecret(clientSecret)
-                    .build();
+            synchronized (KeycloakProperties.class) {
+                if (keycloakInstance == null) {
+                    keycloakInstance = KeycloakBuilder
+                            .builder()
+                            .serverUrl(serverUrl)
+                            .realm(realm)
+                            .grantType("client_credentials")
+                            .clientId(clientId)
+                            .clientSecret(clientSecret)
+                            .build();
+                }
+            }
         }
         return keycloakInstance;
     }

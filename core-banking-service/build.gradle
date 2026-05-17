@@ -28,6 +28,15 @@ ext {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    //SECURITY - Internal API key authentication for inter-service communication
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    //VALIDATION - Request DTO validation
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    //JASYPT - Encrypted configuration properties
+    implementation 'com.github.ulisesbocchio:jasypt-spring-boot-starter:3.0.5'
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
 
     //SPRING BOOT - TRACING

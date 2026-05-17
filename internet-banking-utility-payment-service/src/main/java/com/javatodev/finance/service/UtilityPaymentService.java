@@ -1,5 +1,6 @@
 package com.javatodev.finance.service;
 
+import com.javatodev.finance.exception.SimpleBankingGlobalException;
 import com.javatodev.finance.model.TransactionStatus;
 import com.javatodev.finance.model.dto.UtilityPayment;
 import com.javatodev.finance.model.entity.UtilityPaymentEntity;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,22 +30,55 @@ public class UtilityPaymentService {
 
     private UtilityPaymentMapper utilityPaymentMapper = new UtilityPaymentMapper();
 
-    public UtilityPaymentResponse utilPayment(UtilityPaymentRequest paymentRequest) {
-        log.info("Utility payment processing {}", paymentRequest.toString());
+    /**
+     * Processes a utility payment with idempotency key support and failure handling.
+     * If a payment with the same idempotency key already exists, returns the existing result.
+     * Note: No @Transactional here so that the PROCESSING record and FAILED status update
+     * are committed independently and survive even when the Feign call fails.
+     * The core-banking-service has its own @Transactional boundary for balance changes.
+     */
+    public UtilityPaymentResponse utilPayment(UtilityPaymentRequest paymentRequest, String idempotencyKey) {
+        log.info("Processing utility payment request");
+
+        // Idempotency check — return existing result if already processed
+        if (idempotencyKey != null) {
+            Optional<UtilityPaymentEntity> existing = utilityPaymentRepository.findByIdempotencyKey(idempotencyKey);
+            if (existing.isPresent()) {
+                log.info("Duplicate utility payment request detected, returning existing result");
+                UtilityPaymentEntity existingEntity = existing.get();
+                return UtilityPaymentResponse.builder()
+                    .message("Utility Payment Already Processed")
+                    .transactionId(existingEntity.getTransactionId())
+                    .build();
+            }
+        }
 
         UtilityPaymentEntity entity = new UtilityPaymentEntity();
         BeanUtils.copyProperties(paymentRequest, entity);
         entity.setStatus(TransactionStatus.PROCESSING);
+        entity.setIdempotencyKey(idempotencyKey);
         UtilityPaymentEntity optUtilPayment = utilityPaymentRepository.save(entity);
 
-        UtilityPaymentResponse utilityPaymentResponse = bankingCoreRestClient.utilityPayment(paymentRequest);
-        log.info("Transaction response {}", utilityPaymentResponse.toString());
+        try {
+            // Call core-banking-service to process the actual utility payment
+            UtilityPaymentResponse utilityPaymentResponse = bankingCoreRestClient.utilityPayment(paymentRequest);
+            log.info("Utility payment processed successfully");
 
-        optUtilPayment.setStatus(TransactionStatus.SUCCESS);
-        optUtilPayment.setTransactionId(utilityPaymentResponse.getTransactionId());
-        utilityPaymentRepository.save(optUtilPayment);
+            optUtilPayment.setStatus(TransactionStatus.SUCCESS);
+            optUtilPayment.setTransactionId(utilityPaymentResponse.getTransactionId());
+            utilityPaymentRepository.save(optUtilPayment);
 
-        return UtilityPaymentResponse.builder().message("Utility Payment Successfully Processed").transactionId(utilityPaymentResponse.getTransactionId()).build();
+            return UtilityPaymentResponse.builder()
+                .message("Utility Payment Successfully Processed")
+                .transactionId(utilityPaymentResponse.getTransactionId())
+                .build();
+        } catch (Exception e) {
+            // Mark as FAILED — this save commits independently since no wrapping @Transactional
+            log.error("Utility payment failed", e);
+            optUtilPayment.setStatus(TransactionStatus.FAILED);
+            utilityPaymentRepository.save(optUtilPayment);
+            throw new SimpleBankingGlobalException("Utility payment failed. No balance was deducted.");
+        }
     }
 
     public List<UtilityPayment> readPayments(Pageable pageable) {

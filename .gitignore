@@ -1,1 +1,4 @@
 .idea
+
+# Environment files containing secrets — do not commit
+docker-compose/.env
