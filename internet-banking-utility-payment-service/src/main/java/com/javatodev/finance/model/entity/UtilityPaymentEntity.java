@@ -25,6 +25,10 @@ public class UtilityPaymentEntity extends AuditAware {
     private String account;
     private String transactionId;
 
+    // Idempotency key to prevent duplicate utility payments on retries
+    @Column(unique = true)
+    private String idempotencyKey;
+
     @Enumerated(EnumType.STRING)
     private TransactionStatus status;
 

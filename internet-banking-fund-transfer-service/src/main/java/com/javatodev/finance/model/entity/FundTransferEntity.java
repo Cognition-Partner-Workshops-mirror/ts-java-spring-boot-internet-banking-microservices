@@ -24,6 +24,10 @@ public class FundTransferEntity extends AuditAware {
     private String toAccount;
     private BigDecimal amount;
 
+    // Idempotency key to prevent duplicate fund transfers on retries
+    @Column(unique = true)
+    private String idempotencyKey;
+
     @Enumerated(EnumType.STRING)
     private TransactionStatus status;
 

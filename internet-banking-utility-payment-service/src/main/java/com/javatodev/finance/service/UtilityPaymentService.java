@@ -15,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,12 +29,33 @@ public class UtilityPaymentService {
 
     private UtilityPaymentMapper utilityPaymentMapper = new UtilityPaymentMapper();
 
-    public UtilityPaymentResponse utilPayment(UtilityPaymentRequest paymentRequest) {
+    /**
+     * Process a utility payment with optional idempotency key.
+     * If an idempotency key is provided and a payment with that key already exists,
+     * the original result is returned without re-processing the payment.
+     */
+    public UtilityPaymentResponse utilPayment(UtilityPaymentRequest paymentRequest, String idempotencyKey) {
+
+        // Check for duplicate request using idempotency key
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            Optional<UtilityPaymentEntity> existing = utilityPaymentRepository.findByIdempotencyKey(idempotencyKey);
+            if (existing.isPresent()) {
+                log.info("Duplicate utility payment detected for idempotency key: {}", idempotencyKey);
+                UtilityPaymentEntity entity = existing.get();
+                return UtilityPaymentResponse.builder()
+                        .message("Utility Payment Already Processed (duplicate request)")
+                        .transactionId(entity.getTransactionId())
+                        .build();
+            }
+        }
+
         log.info("Utility payment processing {}", paymentRequest.toString());
 
         UtilityPaymentEntity entity = new UtilityPaymentEntity();
         BeanUtils.copyProperties(paymentRequest, entity);
         entity.setStatus(TransactionStatus.PROCESSING);
+        // Store the idempotency key for deduplication
+        entity.setIdempotencyKey(idempotencyKey);
         UtilityPaymentEntity optUtilPayment = utilityPaymentRepository.save(entity);
 
         UtilityPaymentResponse utilityPaymentResponse = bankingCoreRestClient.utilityPayment(paymentRequest);
