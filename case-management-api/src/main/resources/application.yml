@@ -1,0 +1,96 @@
+# =============================================================
+# Case Management API - Application Configuration
+# =============================================================
+# This configuration supports two profiles:
+#   - default/dev: Uses H2 in-memory database for local development
+#   - oracle: Uses Oracle database for production/staging
+# =============================================================
+
+server:
+  port: 8080
+
+spring:
+  application:
+    name: case-management-api
+
+  # Default profile uses H2 for local dev and testing
+  profiles:
+    active: dev
+
+  # JPA configuration common to all profiles
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+# Actuator endpoints for monitoring and health checks
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# SpringDoc OpenAPI / Swagger UI configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    # Group endpoints by tags for better organization
+    tags-sorter: alpha
+    operations-sorter: method
+
+# Custom application properties for logging configuration
+app:
+  logging:
+    # Enable/disable API request logging (used for reporting)
+    enabled: true
+
+---
+# =============================================================
+# DEV Profile - H2 In-Memory Database
+# =============================================================
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:h2:mem:casemanagement;DB_CLOSE_DELAY=-1;MODE=Oracle
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+
+---
+# =============================================================
+# ORACLE Profile - Oracle Database
+# =============================================================
+spring:
+  config:
+    activate:
+      on-profile: oracle
+
+  datasource:
+    url: jdbc:oracle:thin:@//localhost:1521/XEPDB1
+    driver-class-name: oracle.jdbc.OracleDriver
+    username: ${ORACLE_DB_USERNAME:case_mgmt_user}
+    password: ${ORACLE_DB_PASSWORD:case_mgmt_pass}
+
+  jpa:
+    database-platform: org.hibernate.dialect.OracleDialect
+    hibernate:
+      ddl-auto: none
