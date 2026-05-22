@@ -50,6 +50,8 @@ CREATE OR REPLACE PACKAGE BODY CASE_DATA_PKG AS
     -- Inserts a new record into CASE_DATA_SET1 table.
     -- Generates the primary key using CASE_SET1_SEQ sequence.
     -- Sets timestamps automatically.
+    -- Note: No COMMIT/ROLLBACK here — transaction management is
+    -- handled by Spring's @Transactional in the calling Java service.
     -- ----------------------------------------------------------------
     PROCEDURE INSERT_CASE_DATA_SET1(
         p_case_number       IN  VARCHAR2,
@@ -84,11 +86,6 @@ CREATE OR REPLACE PACKAGE BODY CASE_DATA_PKG AS
             CURRENT_TIMESTAMP
         );
 
-        COMMIT;
-    EXCEPTION
-        WHEN OTHERS THEN
-            ROLLBACK;
-            RAISE;
     END INSERT_CASE_DATA_SET1;
 
     -- ----------------------------------------------------------------
@@ -96,6 +93,8 @@ CREATE OR REPLACE PACKAGE BODY CASE_DATA_PKG AS
     -- Inserts a new record into CASE_DATA_SET2 table.
     -- Generates the primary key using CASE_SET2_SEQ sequence.
     -- Sets timestamps automatically.
+    -- Note: No COMMIT/ROLLBACK here — transaction management is
+    -- handled by Spring's @Transactional in the calling Java service.
     -- ----------------------------------------------------------------
     PROCEDURE INSERT_CASE_DATA_SET2(
         p_case_number       IN  VARCHAR2,
@@ -130,11 +129,6 @@ CREATE OR REPLACE PACKAGE BODY CASE_DATA_PKG AS
             CURRENT_TIMESTAMP
         );
 
-        COMMIT;
-    EXCEPTION
-        WHEN OTHERS THEN
-            ROLLBACK;
-            RAISE;
     END INSERT_CASE_DATA_SET2;
 
 END CASE_DATA_PKG;
