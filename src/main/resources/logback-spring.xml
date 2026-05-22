@@ -1,0 +1,66 @@
+<!-- 
+    Logback configuration for Case Management API.
+    Provides structured logging with correlation ID and SM_USER context
+    for request tracing and reporting. 
+    
+    Log patterns include:
+    - Timestamp, log level, thread name
+    - Correlation ID and SM_USER from MDC (set by the logging interceptor)
+    - Logger name and message
+    
+    This structured format makes it easy to parse logs for additional
+    reporting and monitoring beyond what the database logging provides.
+-->
+<configuration>
+
+    <!-- Console appender for development and container stdout -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [correlationId=%X{correlationId}] [smUser=%X{smUser}] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- File appender for persistent logging -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/case-management-api.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- Daily log rotation with 30-day retention -->
+            <fileNamePattern>logs/case-management-api.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [correlationId=%X{correlationId}] [smUser=%X{smUser}] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- JSON file appender for structured log analysis and reporting tools -->
+    <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/case-management-api-json.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/case-management-api-json.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSS}","level":"%level","thread":"%thread","correlationId":"%X{correlationId}","smUser":"%X{smUser}","logger":"%logger{36}","message":"%msg"}%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Application-specific logging levels -->
+    <logger name="com.casemanagement" level="INFO"/>
+    <logger name="com.casemanagement.interceptor" level="INFO"/>
+    <logger name="com.casemanagement.service" level="INFO"/>
+
+    <!-- Spring framework logging -->
+    <logger name="org.springframework" level="WARN"/>
+    <logger name="org.hibernate" level="WARN"/>
+
+    <!-- Root logger configuration -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="JSON_FILE"/>
+    </root>
+
+</configuration>
