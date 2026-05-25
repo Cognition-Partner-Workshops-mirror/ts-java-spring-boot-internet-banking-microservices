@@ -5,6 +5,8 @@ import com.javatodev.finance.model.dto.BankAccount;
 import com.javatodev.finance.model.dto.UtilityAccount;
 import com.javatodev.finance.model.entity.BankAccountEntity;
 import com.javatodev.finance.model.entity.UtilityAccountEntity;
+import com.javatodev.finance.model.mapper.BankAccountMapper;
+import com.javatodev.finance.model.mapper.UtilityAccountMapper;
 import com.javatodev.finance.repository.BankAccountRepository;
 import com.javatodev.finance.repository.UtilityAccountRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,6 +14,9 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+/**
+ * Tests for AccountService, updated to use injected mappers (Phase 5/12).
+ */
 class AccountServiceTest {
 
     private BankAccountRepository bankAccountRepository;
@@ -22,7 +27,10 @@ class AccountServiceTest {
     void setUp() {
         bankAccountRepository = mock(BankAccountRepository.class);
         utilityAccountRepository = mock(UtilityAccountRepository.class);
-        accountService = new AccountService(bankAccountRepository, utilityAccountRepository);
+        // AccountService now takes mappers as constructor args (Phase 5)
+        BankAccountMapper bankAccountMapper = new BankAccountMapper();
+        UtilityAccountMapper utilityAccountMapper = new UtilityAccountMapper();
+        accountService = new AccountService(bankAccountMapper, utilityAccountMapper, bankAccountRepository, utilityAccountRepository);
     }
 
     @Test
@@ -73,4 +81,3 @@ class AccountServiceTest {
         assertThrows(EntityNotFoundException.class, () -> accountService.readUtilityAccount(1L));
     }
 }
-

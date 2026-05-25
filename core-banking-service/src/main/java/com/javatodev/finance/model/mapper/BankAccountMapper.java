@@ -4,7 +4,12 @@ import com.javatodev.finance.model.dto.BankAccount;
 import com.javatodev.finance.model.entity.BankAccountEntity;
 
 import org.springframework.beans.BeanUtils;
+import org.springframework.stereotype.Component;
 
+/**
+ * Spring-managed bean mapper for BankAccount entity/DTO conversion (DIP - Phase 5).
+ */
+@Component
 public class BankAccountMapper extends BaseMapper<BankAccountEntity, BankAccount> {
 
     @Override

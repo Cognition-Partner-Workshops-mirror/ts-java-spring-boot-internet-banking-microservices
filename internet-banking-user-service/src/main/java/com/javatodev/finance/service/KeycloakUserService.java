@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class KeycloakUserService {
+public class KeycloakUserService implements IKeycloakUserService {
 
     private final KeycloakManager keyCloakManager;
 

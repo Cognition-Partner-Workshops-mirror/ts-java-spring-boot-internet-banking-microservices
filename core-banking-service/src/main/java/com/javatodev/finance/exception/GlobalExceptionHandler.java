@@ -1,30 +1,30 @@
 package com.javatodev.finance.exception;
 
+import com.javatodev.finance.common.exception.ErrorResponse;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.util.Locale;
 
+/**
+ * Core-banking-service exception handler extending the shared base handler.
+ * Adds service-specific handler for InsufficientFundsException (HTTP 422).
+ */
 @ControllerAdvice
-public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+public class GlobalExceptionHandler extends com.javatodev.finance.common.exception.GlobalExceptionHandler {
 
-    @ExceptionHandler(SimpleBankingGlobalException.class)
-    protected ResponseEntity handleGlobalException(SimpleBankingGlobalException simpleBankingGlobalException, Locale locale) {
+    /**
+     * Returns HTTP 422 for insufficient-funds cases.
+     */
+    @ExceptionHandler(InsufficientFundsException.class)
+    protected ResponseEntity<ErrorResponse> handleInsufficientFundsException(InsufficientFundsException e, Locale locale) {
         return ResponseEntity
-            .badRequest()
+            .unprocessableEntity()
             .body(ErrorResponse.builder()
-                .code(simpleBankingGlobalException.getCode())
-                .message(simpleBankingGlobalException.getMessage())
+                .code(e.getCode())
+                .message(e.getMessage())
                 .build());
     }
-
-    @ExceptionHandler({Exception.class})
-    protected ResponseEntity handleException(Exception e, Locale locale) {
-        return ResponseEntity
-            .badRequest()
-            .body("Exception occur inside API " + e);
-    }
-
 }

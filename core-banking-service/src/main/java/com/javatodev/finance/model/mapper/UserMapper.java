@@ -4,9 +4,18 @@ import com.javatodev.finance.model.dto.User;
 import com.javatodev.finance.model.entity.UserEntity;
 
 import org.springframework.beans.BeanUtils;
+import org.springframework.stereotype.Component;
 
+import lombok.RequiredArgsConstructor;
+
+/**
+ * Spring-managed bean mapper for User entity/DTO conversion (DIP - Phase 5).
+ */
+@Component
+@RequiredArgsConstructor
 public class UserMapper extends BaseMapper<UserEntity, User> {
-    private BankAccountMapper bankAccountMapper = new BankAccountMapper();
+    // Injected as Spring bean instead of manual instantiation
+    private final BankAccountMapper bankAccountMapper;
 
     @Override
     public UserEntity convertToEntity(User dto, Object... args) {

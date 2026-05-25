@@ -15,9 +15,10 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class UserService {
+public class UserService implements IUserService {
 
-    private UserMapper userMapper = new UserMapper();
+    // Injected as Spring bean instead of manual instantiation (DIP - Phase 5)
+    private final UserMapper userMapper;
 
     private final UserRepository userRepository;
 

@@ -4,7 +4,12 @@ import com.javatodev.finance.model.dto.FundTransfer;
 import com.javatodev.finance.model.entity.FundTransferEntity;
 
 import org.springframework.beans.BeanUtils;
+import org.springframework.stereotype.Component;
 
+/**
+ * Spring-managed bean mapper for FundTransfer entity/DTO conversion (DIP - Phase 5).
+ */
+@Component
 public class FundTransferMapper extends BaseMapper<FundTransferEntity, FundTransfer> {
     @Override
     public FundTransferEntity convertToEntity(FundTransfer dto, Object... args) {

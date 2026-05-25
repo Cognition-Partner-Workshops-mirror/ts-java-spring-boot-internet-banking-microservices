@@ -1,1 +1,4 @@
 rootProject.name = 'internet-banking-utility-payment-service'
+
+// Include the shared banking-common library as a composite build
+includeBuild '../banking-common'

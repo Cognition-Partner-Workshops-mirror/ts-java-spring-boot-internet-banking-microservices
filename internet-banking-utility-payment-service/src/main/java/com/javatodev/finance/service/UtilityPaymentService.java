@@ -22,11 +22,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class UtilityPaymentService {
+public class UtilityPaymentService implements IUtilityPaymentService {
     private final UtilityPaymentRepository utilityPaymentRepository;
     private final BankingCoreRestClient bankingCoreRestClient;
 
-    private UtilityPaymentMapper utilityPaymentMapper = new UtilityPaymentMapper();
+    // Injected as Spring bean instead of manual instantiation (DIP - Phase 5)
+    private final UtilityPaymentMapper utilityPaymentMapper;
 
     public UtilityPaymentResponse utilPayment(UtilityPaymentRequest paymentRequest) {
         log.info("Utility payment processing {}", paymentRequest.toString());

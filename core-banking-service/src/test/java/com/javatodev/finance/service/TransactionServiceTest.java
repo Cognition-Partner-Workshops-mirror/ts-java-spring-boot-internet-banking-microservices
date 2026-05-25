@@ -1,9 +1,7 @@
 package com.javatodev.finance.service;
 
 import com.javatodev.finance.exception.EntityNotFoundException;
-import com.javatodev.finance.exception.GlobalErrorCode;
 import com.javatodev.finance.exception.InsufficientFundsException;
-import com.javatodev.finance.model.TransactionType;
 import com.javatodev.finance.model.dto.BankAccount;
 import com.javatodev.finance.model.dto.UtilityAccount;
 import com.javatodev.finance.model.dto.request.FundTransferRequest;
@@ -16,21 +14,24 @@ import com.javatodev.finance.repository.BankAccountRepository;
 import com.javatodev.finance.repository.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import java.math.BigDecimal;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+/**
+ * Tests for TransactionService, updated to mock IAccountService interface (Phase 2/12).
+ */
 class TransactionServiceTest {
-    private AccountService accountService;
+    // Mock interface instead of concrete class (Phase 12)
+    private IAccountService accountService;
     private BankAccountRepository bankAccountRepository;
     private TransactionRepository transactionRepository;
     private TransactionService transactionService;
 
     @BeforeEach
     void setUp() {
-        accountService = mock(AccountService.class);
+        accountService = mock(IAccountService.class);
         bankAccountRepository = mock(BankAccountRepository.class);
         transactionRepository = mock(TransactionRepository.class);
         transactionService = new TransactionService(accountService, bankAccountRepository, transactionRepository);
@@ -176,12 +177,15 @@ class TransactionServiceTest {
 
     @Test
     void validateBalance_throwsException() {
+        // Use setters instead of non-existent all-args constructor
+        FundTransferRequest request = new FundTransferRequest();
+        request.setFromAccount("A1");
+        request.setToAccount("A2");
+        request.setAmount(BigDecimal.valueOf(100));
         BankAccount account = new BankAccount();
         account.setNumber("A1");
         account.setActualBalance(BigDecimal.valueOf(50));
-        assertThrows(InsufficientFundsException.class, () -> {
-            transactionService.fundTransfer(new FundTransferRequest("A1", "A2", BigDecimal.valueOf(100)));
-        });
+        when(accountService.readBankAccount("A1")).thenReturn(account);
+        assertThrows(InsufficientFundsException.class, () -> transactionService.fundTransfer(request));
     }
 }
-

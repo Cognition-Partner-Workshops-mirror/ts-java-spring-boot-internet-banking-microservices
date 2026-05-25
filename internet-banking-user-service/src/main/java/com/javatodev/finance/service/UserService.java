@@ -1,35 +1,71 @@
 package com.javatodev.finance.service;
 
 import com.javatodev.finance.exception.*;
+import com.javatodev.finance.model.dto.CreateUserRequest;
 import com.javatodev.finance.model.dto.Status;
 import com.javatodev.finance.model.dto.User;
+import com.javatodev.finance.model.dto.UserResponse;
 import com.javatodev.finance.model.dto.UserUpdateRequest;
 import com.javatodev.finance.model.entity.UserEntity;
 import com.javatodev.finance.model.mapper.UserMapper;
 import com.javatodev.finance.model.repository.UserRepository;
-import com.javatodev.finance.model.rest.response.UserResponse;
 import com.javatodev.finance.service.rest.BankingCoreRestClient;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
 import java.util.List;
 
+/**
+ * User management service implementing IUserService.
+ * Uses IKeycloakUserService interface (DIP), injected mapper (Phase 5),
+ * CreateUserRequest/UserResponse DTOs (Phase 6), and KeycloakUserRepresentationFactory (Phase 10).
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class UserService {
-    private final KeycloakUserService keycloakUserService;
+public class UserService implements IUserService {
+    // Depends on interface, not concrete class (DIP)
+    private final IKeycloakUserService keycloakUserService;
     private final UserRepository userRepository;
     private final BankingCoreRestClient bankingCoreRestClient;
 
-    private UserMapper userMapper = new UserMapper();
+    // Injected as Spring bean instead of manual instantiation (DIP - Phase 5)
+    private final UserMapper userMapper;
 
+    /**
+     * Creates a user from the new CreateUserRequest DTO and returns UserResponse (Phase 6).
+     * Delegates Keycloak UserRepresentation construction to KeycloakUserRepresentationFactory (Phase 10).
+     */
+    @Override
+    public UserResponse createUser(CreateUserRequest request) {
+        // Delegate to the existing logic via a User DTO for backward compatibility
+        User user = new User();
+        user.setEmail(request.getEmail());
+        user.setIdentification(request.getIdentification());
+        user.setPassword(request.getPassword());
+
+        User created = createUser(user);
+
+        // Convert to UserResponse DTO (excludes password)
+        return UserResponse.builder()
+            .id(created.getId())
+            .email(created.getEmail())
+            .identification(created.getIdentification())
+            .status(created.getStatus())
+            .authId(created.getAuthId())
+            .build();
+    }
+
+    /**
+     * Legacy createUser accepting User DTO.
+     * Uses KeycloakUserRepresentationFactory for Keycloak user construction (Phase 10).
+     */
+    @Override
     public User createUser(User user) {
 
         List<UserRepresentation> userRepresentations = keycloakUserService.readUserByEmail(user.getEmail());
@@ -37,7 +73,7 @@ public class UserService {
             throw new UserAlreadyRegisteredException("This email already registered as a user. Please check and retry.", GlobalErrorCode.ERROR_EMAIL_REGISTERED);
         }
 
-        UserResponse userResponse = bankingCoreRestClient.readUser(user.getIdentification());
+        com.javatodev.finance.model.rest.response.UserResponse userResponse = bankingCoreRestClient.readUser(user.getIdentification());
 
         if (userResponse.getId() != null) {
 
@@ -45,18 +81,12 @@ public class UserService {
                 throw new InvalidEmailException("Incorrect email. Please check and retry.", GlobalErrorCode.ERROR_INVALID_EMAIL);
             }
 
-            UserRepresentation userRepresentation = new UserRepresentation();
-            userRepresentation.setEmail(userResponse.getEmail());
-            userRepresentation.setEmailVerified(false);
-            userRepresentation.setEnabled(false);
-            userRepresentation.setUsername(userResponse.getEmail());
-            userRepresentation.setFirstName(userResponse.getFirstName());
-            userRepresentation.setLastName(userResponse.getLastName());
-
-            CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
-            credentialRepresentation.setValue(user.getPassword());
-            credentialRepresentation.setTemporary(false);
-            userRepresentation.setCredentials(Collections.singletonList(credentialRepresentation));
+            // Use factory to build Keycloak UserRepresentation (Phase 10: Builder Pattern)
+            UserRepresentation userRepresentation = KeycloakUserRepresentationFactory.createNewUser(
+                userResponse.getEmail(),
+                userResponse.getFirstName(),
+                userResponse.getLastName(),
+                user.getPassword());
 
             Integer userCreationResponse = keycloakUserService.createUser(userRepresentation);
 
@@ -77,6 +107,7 @@ public class UserService {
 
     }
 
+    @Override
     public List<User> readUsers(Pageable pageable) {
         Page<UserEntity> allUsersInDb = userRepository.findAll(pageable);
         List<User> users = userMapper.convertToDtoList(allUsersInDb.getContent());
@@ -89,10 +120,12 @@ public class UserService {
         return users;
     }
 
+    @Override
     public User readUser(Long userId) {
         return userMapper.convertToDto(userRepository.findById(userId).orElseThrow(EntityNotFoundException::new));
     }
 
+    @Override
     public User updateUser(Long id, UserUpdateRequest userUpdateRequest) {
         UserEntity userEntity = userRepository.findById(id).orElseThrow(EntityNotFoundException::new);
 
@@ -106,6 +139,4 @@ public class UserService {
         userEntity.setStatus(userUpdateRequest.getStatus());
         return userMapper.convertToDto(userRepository.save(userEntity));
     }
-
-
 }

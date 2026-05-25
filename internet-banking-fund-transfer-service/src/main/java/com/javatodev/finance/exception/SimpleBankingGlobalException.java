@@ -1,18 +1,18 @@
 package com.javatodev.finance.exception;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+/**
+ * Service-specific alias extending the shared SimpleBankingGlobalException.
+ * Maintained for backward compatibility with existing service-level exception subclasses.
+ */
+public class SimpleBankingGlobalException extends com.javatodev.finance.common.exception.SimpleBankingGlobalException {
 
-@Getter
-@Setter
-@AllArgsConstructor
-@NoArgsConstructor
-public class SimpleBankingGlobalException extends RuntimeException {
+    public SimpleBankingGlobalException() {
+        super();
+    }
 
-    private String code;
-    private String message;
+    public SimpleBankingGlobalException(String code, String message) {
+        super(code, message);
+    }
 
     public SimpleBankingGlobalException(String message) {
         super(message);

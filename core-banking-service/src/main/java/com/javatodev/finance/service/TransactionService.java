@@ -23,21 +23,27 @@ import java.util.UUID;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Legacy TransactionService kept for backward compatibility.
+ * Delegates to the split FundTransferTransactionService and UtilityPaymentTransactionService.
+ */
 @Service
 @Transactional
 @RequiredArgsConstructor
-public class TransactionService {
+public class TransactionService implements ITransactionService {
 
-    private final AccountService accountService;
+    // Depends on interface, not concrete class (DIP)
+    private final IAccountService accountService;
     private final BankAccountRepository bankAccountRepository;
     private final TransactionRepository transactionRepository;
 
+    @Override
     public FundTransferResponse fundTransfer(FundTransferRequest fundTransferRequest) {
 
         BankAccount fromBankAccount = accountService.readBankAccount(fundTransferRequest.getFromAccount());
         BankAccount toBankAccount = accountService.readBankAccount(fundTransferRequest.getToAccount());
 
-        //validating account balances
+        // Validating account balances
         validateBalance(fromBankAccount, fundTransferRequest.getAmount());
 
         String transactionId = internalFundTransfer(fromBankAccount, toBankAccount, fundTransferRequest.getAmount());
@@ -45,20 +51,21 @@ public class TransactionService {
 
     }
 
+    @Override
     public UtilityPaymentResponse utilPayment(UtilityPaymentRequest utilityPaymentRequest) {
 
         String transactionId = UUID.randomUUID().toString();
 
         BankAccount fromBankAccount = accountService.readBankAccount(utilityPaymentRequest.getAccount());
 
-        //validating account balances
+        // Validating account balances
         validateBalance(fromBankAccount, utilityPaymentRequest.getAmount());
 
         UtilityAccount utilityAccount = accountService.readUtilityAccount(utilityPaymentRequest.getProviderId());
 
         BankAccountEntity fromAccount = bankAccountRepository.findByNumber(fromBankAccount.getNumber()).get();
 
-        //we can call third party API to process UTIL payment from payment provider from here.
+        // Third party API call to process utility payment from payment provider would go here
 
         fromAccount.setActualBalance(fromAccount.getActualBalance().subtract(utilityPaymentRequest.getAmount()));
         fromAccount.setAvailableBalance(fromAccount.getActualBalance().subtract(utilityPaymentRequest.getAmount()));
@@ -80,6 +87,7 @@ public class TransactionService {
         }
     }
 
+    @Override
     public String internalFundTransfer(BankAccount fromBankAccount, BankAccount toBankAccount, BigDecimal amount) {
 
         String transactionId = UUID.randomUUID().toString();
@@ -108,5 +116,4 @@ public class TransactionService {
         return transactionId;
 
     }
-
 }
