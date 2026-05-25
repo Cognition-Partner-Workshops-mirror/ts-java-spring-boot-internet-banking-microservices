@@ -368,6 +368,16 @@ This document compares the codebase against engineering best practices across se
 |----------|--------|
 | Critical | Small |
 
+### GAP-7.7: Race Condition — No Pessimistic Locking on Balance Updates
+
+**Description:** In `TransactionService.internalFundTransfer()` and `utilPayment()`, the balance is read via `accountService.readBankAccount()`, validated in application code, and then updated in a separate database call. Between the read and the write, another concurrent request can read the same stale balance and also pass validation. Both transactions proceed, resulting in an overdraft. There is no `SELECT ... FOR UPDATE` (pessimistic lock) or optimistic locking (`@Version` column) on `BankAccountEntity` to prevent this race condition. In a banking system handling concurrent transfers from the same account, this is a critical financial safety issue.
+
+**Impact:** Two concurrent transfers from the same account can both succeed even when only one should, allowing the account balance to go negative (overdraft).
+
+| Severity | Effort |
+|----------|--------|
+| Critical | Small |
+
 ---
 
 ## Summary Table
@@ -403,10 +413,11 @@ This document compares the codebase against engineering best practices across se
 | GAP-7.4 | Resilience | No fallback behavior | Medium | Medium |
 | GAP-7.5 | Resilience | No transaction compensation/saga pattern | Critical | Large |
 | GAP-7.6 | Resilience | Balance calculation bug (double-subtract/add) | Critical | Small |
+| GAP-7.7 | Resilience | Race condition — no pessimistic locking on balance updates | Critical | Small |
 
 ### Severity Distribution
 
-- **Critical:** 6 gaps (GAP-2.1, GAP-4.1, GAP-5.5, GAP-7.5, GAP-7.6)
+- **Critical:** 7 gaps (GAP-2.1, GAP-4.1, GAP-5.5, GAP-7.5, GAP-7.6, GAP-7.7)
 - **High:** 12 gaps
 - **Medium:** 9 gaps
 - **Low:** 2 gaps

@@ -34,7 +34,36 @@ Fix: Set availableBalance BEFORE modifying actualBalance, or compute both from t
 
 ---
 
-### 1.2 Fix HTTP Status Codes in Error Handling (GAP-2.1, GAP-2.2)
+### 1.2 Add Pessimistic Locking on Balance Updates (GAP-7.7)
+
+**Priority:** P0 — Financial safety (prevents overdraft via concurrent requests)
+
+**Description:** `TransactionService` reads account balances, validates in application code, then updates in a separate DB call. Two concurrent transfers from the same account can both pass validation before either write lands, causing an overdraft. Add pessimistic locking so the balance row is locked during the read-validate-write cycle.
+
+**Devin Prompt:**
+```
+In core-banking-service, add pessimistic locking to prevent race conditions on concurrent balance updates:
+
+1. In BankAccountRepository, add a locking query method:
+   @Lock(LockModeType.PESSIMISTIC_WRITE)
+   @Query("SELECT b FROM BankAccountEntity b WHERE b.number = :number")
+   Optional<BankAccountEntity> findByNumberForUpdate(@Param("number") String number);
+
+2. In TransactionService.internalFundTransfer():
+   - Replace bankAccountRepository.findByNumber() calls with findByNumberForUpdate() so the row is locked for the duration of the transaction.
+   - The existing @Transactional annotation ensures the lock is held until commit.
+
+3. In TransactionService.utilPayment():
+   - Same change: use findByNumberForUpdate() when loading the account to debit.
+
+4. As a complementary measure, add an @Version field (Long version) to BankAccountEntity for optimistic locking as a safety net.
+
+5. Add a concurrent transfer test: submit two transfers from the same account in parallel threads, verify only one succeeds when balance is insufficient for both.
+```
+
+---
+
+### 1.3 Fix HTTP Status Codes in Error Handling (GAP-2.1, GAP-2.2)
 
 **Priority:** P0 — API correctness
 
@@ -55,7 +84,7 @@ Update GlobalExceptionHandler in all 4 services (core-banking-service, internet-
 
 ---
 
-### 1.3 Add Request Body Validation (GAP-2.3, GAP-4.4)
+### 1.4 Add Request Body Validation (GAP-2.3, GAP-4.4)
 
 **Priority:** P1 — Data integrity
 
@@ -79,7 +108,7 @@ Add input validation across all services:
 
 ---
 
-### 1.4 Remove Sensitive Data from Logs (GAP-6.4)
+### 1.5 Remove Sensitive Data from Logs (GAP-6.4)
 
 **Priority:** P1 — Security
 
@@ -98,7 +127,7 @@ Audit all log statements across all services and remove sensitive data exposure:
 
 ---
 
-### 1.5 Fix Feign Timeout Configuration (GAP-7.3)
+### 1.6 Fix Feign Timeout Configuration (GAP-7.3)
 
 **Priority:** P1 — Availability
 
@@ -123,7 +152,7 @@ Add Feign timeout configuration to internet-banking-fund-transfer-service, inter
 
 ---
 
-### 1.6 Fix OpenAPI Dependency (GAP-5.1)
+### 1.7 Fix OpenAPI Dependency (GAP-5.1)
 
 **Priority:** P2 — Developer experience
 
@@ -144,7 +173,7 @@ The webflux variant is for reactive applications; these services use Spring MVC 
 
 ---
 
-### 1.7 Add Typed ResponseEntity and Pagination Metadata (GAP-5.2, GAP-5.4)
+### 1.8 Add Typed ResponseEntity and Pagination Metadata (GAP-5.2, GAP-5.4)
 
 **Priority:** P2 — API quality
 
@@ -162,7 +191,7 @@ Across all controllers in all services:
 
 ---
 
-### 1.8 Fix Thread-Unsafe Keycloak Singleton (GAP-4.5)
+### 1.9 Fix Thread-Unsafe Keycloak Singleton (GAP-4.5)
 
 **Priority:** P2 — Correctness
 
@@ -179,7 +208,7 @@ Replace the thread-unsafe lazy singleton with a proper Spring @Bean:
 
 ---
 
-### 1.9 Add Retry Configuration (GAP-7.2)
+### 1.10 Add Retry Configuration (GAP-7.2)
 
 **Priority:** P2 — Availability
 
@@ -539,7 +568,7 @@ Create a GitHub Actions CI/CD pipeline:
 
 | Phase | Items | Key Outcomes |
 |-------|-------|-------------|
-| Phase 1 | 9 items | Fix critical bugs, add validation, secure logs, configure timeouts |
+| Phase 1 | 10 items | Fix critical bugs, add locking, add validation, secure logs, configure timeouts |
 | Phase 2 | 7 items | Add resilience patterns, security hardening, test coverage, shared library |
 | Phase 3 | 7 items | Observability, advanced testing, project structure, CI/CD |
 
@@ -547,14 +576,15 @@ Create a GitHub Actions CI/CD pipeline:
 
 ### Phase 1 Sequence:
 1. GAP-7.6 — Balance bug fix (immediate financial risk)
-2. GAP-2.1/2.2 — Error handling (blocks all other testing)
-3. GAP-2.3/4.4 — Validation (prevents bad data)
-4. GAP-6.4 — Sensitive data in logs (security)
-5. GAP-7.3 — Timeouts (availability)
-6. GAP-5.1 — OpenAPI fix (developer tooling)
-7. GAP-5.2/5.4 — Response types and pagination
-8. GAP-4.5 — Keycloak singleton
-9. GAP-7.2 — Retry configuration
+2. GAP-7.7 — Pessimistic locking on balance updates (prevents overdraft via concurrent requests)
+3. GAP-2.1/2.2 — Error handling (blocks all other testing)
+4. GAP-2.3/4.4 — Validation (prevents bad data)
+5. GAP-6.4 — Sensitive data in logs (security)
+6. GAP-7.3 — Timeouts (availability)
+7. GAP-5.1 — OpenAPI fix (developer tooling)
+8. GAP-5.2/5.4 — Response types and pagination
+9. GAP-4.5 — Keycloak singleton
+10. GAP-7.2 — Retry configuration
 
 ### Phase 2 Sequence:
 1. GAP-5.5 — Idempotency (financial safety)
