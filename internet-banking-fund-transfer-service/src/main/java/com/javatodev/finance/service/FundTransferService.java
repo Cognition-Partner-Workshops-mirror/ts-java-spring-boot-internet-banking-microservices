@@ -37,6 +37,14 @@ public class FundTransferService {
         FundTransferEntity optFundTransfer = fundTransferRepository.save(entity);
 
         FundTransferResponse fundTransferResponse = bankingCoreFeignClient.fundTransfer(request);
+
+        // Handle fallback response: if transactionId is null, the circuit breaker fallback was triggered
+        if (fundTransferResponse.getTransactionId() == null) {
+            optFundTransfer.setStatus(TransactionStatus.FAILED);
+            fundTransferRepository.save(optFundTransfer);
+            return fundTransferResponse;
+        }
+
         optFundTransfer.setTransactionReference(fundTransferResponse.getTransactionId());
         optFundTransfer.setStatus(TransactionStatus.SUCCESS);
         fundTransferRepository.save(optFundTransfer);
