@@ -1,13 +1,15 @@
 package com.javatodev.finance.exception;
 
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+/**
+ * Service-local alias for the shared ErrorResponse in banking-common.
+ * Retained for backward compatibility.
+ */
+public class ErrorResponse extends com.javatodev.finance.common.exception.ErrorResponse {
+    public ErrorResponse() {
+        super();
+    }
 
-@Getter
-@Setter
-@Builder
-public class ErrorResponse {
-    private String code;
-    private String message;
+    public ErrorResponse(String code, String message) {
+        super(code, message);
+    }
 }

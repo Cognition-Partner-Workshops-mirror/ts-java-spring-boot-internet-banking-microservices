@@ -2,7 +2,10 @@ package com.javatodev.finance.controller;
 
 import com.javatodev.finance.model.dto.request.FundTransferRequest;
 import com.javatodev.finance.model.dto.request.UtilityPaymentRequest;
-import com.javatodev.finance.service.TransactionService;
+import com.javatodev.finance.model.dto.response.FundTransferResponse;
+import com.javatodev.finance.model.dto.response.UtilityPaymentResponse;
+import com.javatodev.finance.service.IFundTransferTransactionService;
+import com.javatodev.finance.service.IUtilityPaymentTransactionService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,9 +15,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Transaction controller now delegates to split services (SRP):
+ * FundTransferTransactionService and UtilityPaymentTransactionService.
+ */
 @Slf4j
 @Tag(name = "Transaction Controller", description = "APIs for managing transactions")
 @RestController
@@ -22,24 +30,21 @@ import lombok.extern.slf4j.Slf4j;
 @RequestMapping(value = "/api/v1/transaction")
 public class TransactionController {
 
-    private final TransactionService transactionService;
+    // Depends on interfaces, not concrete classes (DIP)
+    private final IFundTransferTransactionService fundTransferTransactionService;
+    private final IUtilityPaymentTransactionService utilityPaymentTransactionService;
 
     @Operation(summary = "Fund Transfer", description = "Process a fund transfer request")
     @PostMapping("/fund-transfer")
-    public ResponseEntity fundTransfer(@RequestBody FundTransferRequest fundTransferRequest) {
-
+    public ResponseEntity<FundTransferResponse> fundTransfer(@Valid @RequestBody FundTransferRequest fundTransferRequest) {
         log.info("Fund transfer initiated in core bank from {}", fundTransferRequest.toString());
-        return ResponseEntity.ok(transactionService.fundTransfer(fundTransferRequest));
-
+        return ResponseEntity.ok(fundTransferTransactionService.fundTransfer(fundTransferRequest));
     }
 
     @Operation(summary = "Utility Payment", description = "Process a utility payment request")
     @PostMapping("/util-payment")
-    public ResponseEntity utilPayment(@RequestBody UtilityPaymentRequest utilityPaymentRequest) {
-
+    public ResponseEntity<UtilityPaymentResponse> utilPayment(@Valid @RequestBody UtilityPaymentRequest utilityPaymentRequest) {
         log.info("Utility Payment initiated in core bank from {}", utilityPaymentRequest.toString());
-        return ResponseEntity.ok(transactionService.utilPayment(utilityPaymentRequest));
-
+        return ResponseEntity.ok(utilityPaymentTransactionService.utilPayment(utilityPaymentRequest));
     }
-
 }

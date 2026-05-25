@@ -3,7 +3,12 @@ package com.javatodev.finance.model.mapper;
 import com.javatodev.finance.model.dto.User;
 import com.javatodev.finance.model.entity.UserEntity;
 import org.springframework.beans.BeanUtils;
+import org.springframework.stereotype.Component;
 
+/**
+ * Spring-managed bean mapper for User entity/DTO conversion (DIP - Phase 5).
+ */
+@Component
 public class UserMapper extends BaseMapper<UserEntity, User>{
     @Override
     public UserEntity convertToEntity(User dto, Object... args) {

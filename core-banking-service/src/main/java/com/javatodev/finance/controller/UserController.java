@@ -1,6 +1,7 @@
 package com.javatodev.finance.controller;
 
-import com.javatodev.finance.service.UserService;
+import com.javatodev.finance.model.dto.User;
+import com.javatodev.finance.service.IUserService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,9 +13,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Core-banking user controller with typed ResponseEntity<T> (Phase 7).
+ */
 @Slf4j
 @Tag(name = "User Controller", description = "APIs for managing users")
 @RestController
@@ -22,19 +28,19 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final UserService userService;
+    // Depends on interface, not concrete class (DIP)
+    private final IUserService userService;
     private final MessageSource messageSource;
 
     @Operation(summary = "Read User by Identification", description = "Retrieve a user's information by their identification")
     @GetMapping(value = "/{identification}")
-    public ResponseEntity readUser(@PathVariable("identification") String identification) {
+    public ResponseEntity<User> readUser(@PathVariable("identification") String identification) {
         return ResponseEntity.ok(userService.readUser(identification));
     }
 
     @Operation(summary = "Read Users", description = "Retrieve a paginated list of users")
     @GetMapping
-    public ResponseEntity readUsers(Pageable pageable) {
+    public ResponseEntity<List<User>> readUsers(Pageable pageable) {
         return ResponseEntity.ok(userService.readUsers(pageable));
     }
-
 }

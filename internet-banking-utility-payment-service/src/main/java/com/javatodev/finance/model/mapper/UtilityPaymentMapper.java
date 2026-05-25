@@ -4,7 +4,12 @@ import com.javatodev.finance.model.dto.UtilityPayment;
 import com.javatodev.finance.model.entity.UtilityPaymentEntity;
 
 import org.springframework.beans.BeanUtils;
+import org.springframework.stereotype.Component;
 
+/**
+ * Spring-managed bean mapper for UtilityPayment entity/DTO conversion (DIP - Phase 5).
+ */
+@Component
 public class UtilityPaymentMapper extends BaseMapper<UtilityPaymentEntity, UtilityPayment> {
     @Override
     public UtilityPaymentEntity convertToEntity(UtilityPayment dto, Object... args) {

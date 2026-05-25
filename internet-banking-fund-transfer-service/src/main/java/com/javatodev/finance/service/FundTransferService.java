@@ -21,12 +21,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RequiredArgsConstructor
 @Service
-public class FundTransferService {
+public class FundTransferService implements IFundTransferService {
 
     private final FundTransferRepository fundTransferRepository;
     private final BankingCoreFeignClient bankingCoreFeignClient;
 
-    private FundTransferMapper mapper = new FundTransferMapper();
+    // Injected as Spring bean instead of manual instantiation (DIP - Phase 5)
+    private final FundTransferMapper mapper;
 
     public FundTransferResponse fundTransfer(FundTransferRequest request) {
         log.info("Sending fund transfer request {}" + request.toString());
