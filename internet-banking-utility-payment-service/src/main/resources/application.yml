@@ -1,4 +1,67 @@
 spring:
   application:
     name: internet-banking-utility-payment-service
+  cloud:
+    # Enable Feign circuit breaker integration with Resilience4j
+    openfeign:
+      circuitbreaker:
+        enabled: true
+      client:
+        config:
+          # Feign-level timeout configuration for core-banking-service calls
+          core-banking-service:
+            connectTimeout: 5000
+            readTimeout: 5000
+            loggerLevel: BASIC
 
+# Resilience4j Configuration - Fault tolerance patterns for core-banking-service calls
+resilience4j:
+  circuitbreaker:
+    instances:
+      core-banking-service:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        slidingWindowType: COUNT_BASED
+  retry:
+    instances:
+      core-banking-service:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+          - feign.FeignException.ServiceUnavailable
+          - feign.FeignException.GatewayTimeout
+        ignoreExceptions:
+          - com.javatodev.finance.exception.SimpleBankingGlobalException
+  timelimiter:
+    instances:
+      core-banking-service:
+        timeoutDuration: 5s
+        cancelRunningFuture: true
+  bulkhead:
+    instances:
+      core-banking-service:
+        maxConcurrentCalls: 25
+        maxWaitDuration: 0ms
+
+# Expose resilience4j actuator endpoints for monitoring circuit breaker state
+management:
+  health:
+    circuitbreakers:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,circuitbreakers,circuitbreakerevents,retry,retryevents,bulkhead
+  endpoint:
+    health:
+      show-details: always

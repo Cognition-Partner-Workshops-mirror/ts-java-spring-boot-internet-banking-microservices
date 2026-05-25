@@ -22,6 +22,9 @@ eureka:
       defaultZone: http://localhost:8081/eureka
     enabled: false
 
+# Disable Feign circuit breaker in tests to avoid interfering with existing unit tests
+spring.cloud.openfeign.circuitbreaker.enabled: false
+
 info:
   app:
     name: ${spring.application.name}

@@ -39,6 +39,13 @@ public class UtilityPaymentService {
         UtilityPaymentResponse utilityPaymentResponse = bankingCoreRestClient.utilityPayment(paymentRequest);
         log.info("Transaction response {}", utilityPaymentResponse.toString());
 
+        // Handle fallback response: if transactionId is null, the circuit breaker fallback was triggered
+        if (utilityPaymentResponse.getTransactionId() == null) {
+            optUtilPayment.setStatus(TransactionStatus.FAILED);
+            utilityPaymentRepository.save(optUtilPayment);
+            return utilityPaymentResponse;
+        }
+
         optUtilPayment.setStatus(TransactionStatus.SUCCESS);
         optUtilPayment.setTransactionId(utilityPaymentResponse.getTransactionId());
         utilityPaymentRepository.save(optUtilPayment);

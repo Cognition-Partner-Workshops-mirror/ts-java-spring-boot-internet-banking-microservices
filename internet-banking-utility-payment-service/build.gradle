@@ -43,6 +43,12 @@ dependencies {
 	implementation 'io.zipkin.reporter2:zipkin-reporter-brave'
 	implementation 'io.github.openfeign:feign-micrometer'
 
+	// RESILIENCE4J - Circuit breaker, retry, timeout, and bulkhead patterns for fault tolerance
+	implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j'
+	implementation 'io.github.resilience4j:resilience4j-spring-boot3'
+	implementation 'io.github.resilience4j:resilience4j-feign'
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
+
 	//SWAGGER
 	implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.1.0'
 

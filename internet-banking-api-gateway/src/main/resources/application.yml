@@ -1,3 +1,17 @@
 spring:
   application:
     name: internet-banking-api-gateway
+
+# Resilience4j Configuration for API Gateway - Circuit breaker and timeout for downstream services
+resilience4j:
+  circuitbreaker:
+    instances:
+      defaultCircuitBreaker:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 5
+  timelimiter:
+    instances:
+      defaultTimeLimiter:
+        timeoutDuration: 10s
