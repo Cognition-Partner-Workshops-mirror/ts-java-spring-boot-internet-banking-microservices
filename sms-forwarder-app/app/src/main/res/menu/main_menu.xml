@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Options menu for the main dashboard toolbar
+     Provides quick access to Settings and log clearing -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- Settings menu item - shown as icon in toolbar -->
+    <item
+        android:id="@+id/action_settings"
+        android:icon="@drawable/ic_settings"
+        android:title="Settings"
+        app:showAsAction="ifRoom" />
+
+    <!-- Clear log menu item - shown in overflow menu -->
+    <item
+        android:id="@+id/action_clear_log"
+        android:icon="@drawable/ic_delete"
+        android:title="Clear Log"
+        app:showAsAction="never" />
+
+</menu>

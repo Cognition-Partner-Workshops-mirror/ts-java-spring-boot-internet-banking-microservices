@@ -1,0 +1,87 @@
+// Module-level build configuration for the SMS Forwarder app
+// Defines Android SDK versions, dependencies, and build features
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'com.google.devtools.ksp'
+}
+
+android {
+    namespace 'com.banking.smsforwarder'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.banking.smsforwarder"
+        minSdk 26         // Minimum API 26 (Android 8.0) for BiometricPrompt and EncryptedSharedPreferences
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            // Enable code shrinking and obfuscation for release builds
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    // Enable ViewBinding for type-safe view access
+    buildFeatures {
+        viewBinding true
+    }
+
+    // Exclude duplicate META-INF files from JavaMail dependencies
+    packaging {
+        resources {
+            excludes += ['META-INF/NOTICE.md', 'META-INF/LICENSE.md', 'META-INF/NOTICE.txt', 'META-INF/LICENSE.txt']
+        }
+    }
+}
+
+dependencies {
+    // AndroidX Core libraries
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+
+    // Biometric authentication - provides fingerprint and face unlock support
+    implementation 'androidx.biometric:biometric:1.1.0'
+
+    // Encrypted SharedPreferences - secure storage for PIN and sensitive settings
+    implementation 'androidx.security:security-crypto:1.1.0-alpha06'
+
+    // JavaMail for Android - open-source email sending via SMTP
+    implementation 'com.sun.mail:android-mail:1.6.7'
+    implementation 'com.sun.mail:android-activation:1.6.7'
+
+    // Room database - local persistence for forwarded message log
+    implementation 'androidx.room:room-runtime:2.6.1'
+    implementation 'androidx.room:room-ktx:2.6.1'
+    ksp 'androidx.room:room-compiler:2.6.1'
+
+    // Kotlin Coroutines - async operations for email sending and database access
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+
+    // Lifecycle components - ViewModel and coroutine scopes
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
+
+    // Testing dependencies
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
