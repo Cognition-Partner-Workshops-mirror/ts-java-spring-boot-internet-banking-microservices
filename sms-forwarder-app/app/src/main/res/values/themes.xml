@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Application theme configuration
+     Uses Material Components theme with custom color palette -->
+<resources>
+    <style name="Theme.SMSForwarder" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <!-- Primary brand colors -->
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryDark">@color/primary_dark</item>
+        <item name="colorAccent">@color/secondary</item>
+
+        <!-- Status bar color matches primary -->
+        <item name="android:statusBarColor">@color/primary_dark</item>
+
+        <!-- Window background color -->
+        <item name="android:windowBackground">@color/background_primary</item>
+    </style>
+</resources>

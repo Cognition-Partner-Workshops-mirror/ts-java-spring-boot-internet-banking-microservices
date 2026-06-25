@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Backup rules configuration
+     Excludes encrypted preferences and database from cloud backup
+     to prevent security-sensitive data from being backed up -->
+<full-backup-content>
+    <exclude
+        domain="sharedpref"
+        path="pin_secure_prefs.xml" />
+    <exclude
+        domain="sharedpref"
+        path="app_secure_prefs.xml" />
+    <exclude
+        domain="database"
+        path="sms_forwarder_database" />
+</full-backup-content>

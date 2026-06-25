@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Color palette for SMS Forwarder application
+     Uses Material Design 3 inspired color scheme with blue primary -->
+<resources>
+    <!-- Primary brand color - used for toolbar, buttons, accents -->
+    <color name="primary">#1976D2</color>
+    <color name="primary_dark">#1565C0</color>
+    <color name="primary_light">#42A5F5</color>
+
+    <!-- Secondary accent color -->
+    <color name="secondary">#FF6F00</color>
+
+    <!-- Background colors -->
+    <color name="background_primary">#F5F5F5</color>
+    <color name="background_card">#FFFFFF</color>
+
+    <!-- Text colors -->
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+
+    <!-- Status indicator colors -->
+    <color name="status_success">#2E7D32</color>
+    <color name="status_error">#C62828</color>
+
+    <!-- Warning banner colors -->
+    <color name="warning_background">#FFF3E0</color>
+    <color name="warning_text">#E65100</color>
+
+    <!-- Badge colors for message types -->
+    <color name="badge_otp">#1976D2</color>
+    <color name="badge_transaction">#388E3C</color>
+
+    <!-- Standard colors -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+</resources>
